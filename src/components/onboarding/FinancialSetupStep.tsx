@@ -25,11 +25,6 @@ import { useOnboarding } from "@/lib/onboarding-store";
 import { IncomeSource, ExpenseCategory } from "@/types/onboarding";
 import { useState } from "react";
 
-interface FinancialSetupStepProps {
-  onNext: () => void;
-  onBack: () => void;
-}
-
 // Haptic feedback helper
 function triggerHaptic(pattern: number | number[] = 10) {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -60,7 +55,7 @@ const frequencyOptions = [
   { value: "yearly", label: "Yearly" },
 ] as const;
 
-export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) {
+export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
   const { data, addIncomeSource, removeIncomeSource, addExpense, removeExpense } =
     useOnboarding();
   const [showAddIncome, setShowAddIncome] = useState(false);

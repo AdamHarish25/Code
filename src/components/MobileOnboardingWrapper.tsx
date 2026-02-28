@@ -7,7 +7,7 @@
  */
 
 import { motion } from "framer-motion";
-import { Smartphone, Monitor, ArrowRight, Wifi, Lock, Zap } from "lucide-react";
+import { Smartphone, Monitor, Lock, Zap } from "lucide-react";
 import Image from "next/image";
 import { useMobile } from "@/hooks/use-mobile";
 import { OnboardingFlow } from "./onboarding";

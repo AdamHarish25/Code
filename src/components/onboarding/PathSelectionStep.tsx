@@ -11,11 +11,6 @@ import { Shield, TrendingUp, Check } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { InvestmentPath } from "@/types/onboarding";
 
-interface PathSelectionStepProps {
-  onNext: () => void;
-  onBack: () => void;
-}
-
 // Haptic feedback helper
 function triggerHaptic(pattern: number | number[] = 10) {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -44,7 +39,7 @@ const investmentPaths = [
   },
 ] as const;
 
-export function PathSelectionStep({ onNext, onBack }: PathSelectionStepProps) {
+export function PathSelectionStep({ onNext }: { onNext: () => void }) {
   const { data, setInvestmentPath } = useOnboarding();
   const selectedPath = data.investmentPath;
 

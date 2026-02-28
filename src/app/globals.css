@@ -12,8 +12,16 @@
   --secondary-hover: #A896D9;
   --border: #2A2A2A;
   --muted: #6B6B6B;
-  --error: #FF4757;
-  --success: #2ED573;
+  
+  /* Semantic Colors */
+  --success: #00D084;                 /* Soda Green - Success/Income */
+  --success-light: #00F5A3;
+  --success-dim: #00D08420;
+  --danger: #FF5F5F;                  /* Fresh Red Soda - Danger/Over-budget */
+  --danger-light: #FF8A8A;
+  --danger-dim: #FF5F5F20;
+  --warning: #FFB800;
+  --warning-light: #FFD44D;
 }
 
 @theme inline {
@@ -27,8 +35,15 @@
   --color-secondary-hover: var(--secondary-hover);
   --color-border: var(--border);
   --color-muted: var(--muted);
-  --color-error: var(--error);
+  --color-error: var(--danger);
   --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-success-dim: var(--success-dim);
+  --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-danger-dim: var(--danger-dim);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --radius-sm: 8px;
@@ -40,7 +55,12 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+/* Typography - Headers use Plus Jakarta Sans */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-jakarta), sans-serif;
 }
 
 /* Custom scrollbar */

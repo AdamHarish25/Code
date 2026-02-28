@@ -26,7 +26,6 @@ interface StepIndicatorProps {
 
 function StepIndicator({ currentStep, totalSteps, currentStepIndex }: StepIndicatorProps) {
   const steps: OnboardingStep[] = ["welcome", "path", "goals", "financial"];
-  const stepLabels = ["Welcome", "Path", "Goals", "Financial"];
 
   if (currentStep === "complete") return null;
 
@@ -98,11 +97,11 @@ function OnboardingContent() {
       case "welcome":
         return <WelcomeStep onNext={handleNext} />;
       case "path":
-        return <PathSelectionStep onNext={handleNext} onBack={handleBack} />;
+        return <PathSelectionStep onNext={handleNext} />;
       case "goals":
-        return <GoalSettingStep onNext={handleNext} onBack={handleBack} />;
+        return <GoalSettingStep onNext={handleNext} />;
       case "financial":
-        return <FinancialSetupStep onNext={handleFinish} onBack={handleBack} />;
+        return <FinancialSetupStep onNext={handleFinish} />;
       case "complete":
         return (
           <motion.div

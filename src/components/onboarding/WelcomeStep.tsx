@@ -8,7 +8,7 @@
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
 import { Wallet, Sparkles, ArrowRight, Star, Zap, Shield } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-store";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface WelcomeStepProps {
   onNext: () => void;
@@ -19,6 +19,10 @@ function triggerHaptic(pattern: number | number[] = 10) {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
     navigator.vibrate(pattern);
   }
+}
+
+interface DragInfo {
+  offset: { x: number; y: number };
 }
 
 export function WelcomeStep({ onNext }: WelcomeStepProps) {
@@ -65,7 +69,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
     }, 200);
   };
 
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
     if (info.offset.y < -100) {
       // Swipe up to continue
       triggerHaptic(30);
@@ -80,6 +84,18 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
       });
     }
   };
+
+  // Pre-compute random positions for particle burst (using stable seed)
+  const particleBurstPositions = useMemo(() => {
+    const seed = 54321; // Fixed seed for stability
+    return Array.from({ length: 8 }).map((_, i) => {
+      const random = ((seed * (i + 1) * 9301 + 49297) % 233280) / 233280;
+      return {
+        x: (random - 0.5) * 100,
+        y: (random - 0.5) * 100,
+      };
+    });
+  }, []);
 
   return (
     <motion.div
@@ -271,15 +287,15 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         {/* Particle Burst on Click */}
         {showParticles && (
           <div className="absolute inset-0 pointer-events-none">
-            {Array.from({ length: 8 }).map((_, i) => (
+            {particleBurstPositions.map((pos, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 1, scale: 1 }}
                 animate={{
                   opacity: 0,
                   scale: 0,
-                  x: (Math.random() - 0.5) * 100,
-                  y: (Math.random() - 0.5) * 100,
+                  x: pos.x,
+                  y: pos.y,
                 }}
                 transition={{ duration: 0.6, delay: i * 0.05 }}
                 className="absolute inset-0 m-auto w-2 h-2 rounded-full bg-primary"

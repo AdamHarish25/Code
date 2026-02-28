@@ -12,11 +12,6 @@ import { useOnboarding } from "@/lib/onboarding-store";
 import { FinancialGoal } from "@/types/onboarding";
 import { useState } from "react";
 
-interface GoalSettingStepProps {
-  onNext: () => void;
-  onBack: () => void;
-}
-
 // Haptic feedback helper
 function triggerHaptic(pattern: number | number[] = 10) {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -30,7 +25,7 @@ const priorityColors = {
   high: "bg-rose-500/20 text-rose-400 border-rose-500/30",
 } as const;
 
-export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
+export function GoalSettingStep({ onNext }: { onNext: () => void }) {
   const { data, addGoal, removeGoal, setDreamDescription } = useOnboarding();
   const [newGoal, setNewGoal] = useState<Omit<FinancialGoal, "id">>({
     name: "",
