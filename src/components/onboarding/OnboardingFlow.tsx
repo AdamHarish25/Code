@@ -9,7 +9,8 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Check, Loader2 } from "lucide-react";
-import { OnboardingProvider, useOnboarding } from "@/lib/onboarding-store";
+import Image from "next/image";
+import { useOnboarding } from "@/lib/onboarding-store";
 import { OnboardingStep } from "@/types/onboarding";
 import { WelcomeStep } from "./WelcomeStep";
 import { PathSelectionStep } from "./PathSelectionStep";
@@ -64,18 +65,18 @@ function StepIndicator({ currentStep, totalSteps, currentStepIndex }: StepIndica
 }
 
 function OnboardingContent() {
-  const { currentStep, currentStepIndex, totalSteps, data, completeOnboarding } =
+  const { currentStep, currentStepIndex, totalSteps, data, completeOnboarding, nextStep, previousStep } =
     useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
 
   const handleNext = useCallback(() => {
-    // Navigation is handled by the store
-  }, []);
+    nextStep();
+  }, [nextStep]);
 
   const handleBack = useCallback(() => {
-    // Navigation is handled by the store
-  }, []);
+    previousStep();
+  }, [previousStep]);
 
   const handleFinish = async () => {
     setIsSubmitting(true);
@@ -162,9 +163,16 @@ function OnboardingContent() {
               <ChevronLeft className="w-5 h-5 text-muted" />
             </motion.button>
           )}
-          <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Duitly
-          </h1>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logohorizontal.png"
+              alt="Duitly"
+              width={120}
+              height={32}
+              className="object-contain"
+              priority
+            />
+          </div>
         </div>
       </header>
 
@@ -191,9 +199,5 @@ function OnboardingContent() {
 }
 
 export function OnboardingFlow() {
-  return (
-    <OnboardingProvider>
-      <OnboardingContent />
-    </OnboardingProvider>
-  );
+  return <OnboardingContent />;
 }

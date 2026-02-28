@@ -3,6 +3,7 @@
 /**
  * Step 4: Financial Setup Component
  * User inputs monthly income and major expenses
+ * Enhanced with haptic feedback and touch interactions
  */
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +28,13 @@ import { useState } from "react";
 interface FinancialSetupStepProps {
   onNext: () => void;
   onBack: () => void;
+}
+
+// Haptic feedback helper
+function triggerHaptic(pattern: number | number[] = 10) {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(pattern);
+  }
 }
 
 const incomeTypes = [
@@ -69,6 +77,7 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
 
   const handleAddIncome = () => {
     if (newIncome.amount > 0) {
+      triggerHaptic([30, 50, 30]);
       addIncomeSource({ ...newIncome, type: "salary" });
       setNewIncome({ amount: 0, frequency: "monthly" });
       setShowAddIncome(false);
@@ -77,14 +86,26 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
 
   const handleAddExpense = () => {
     if (newExpense.amount > 0) {
+      triggerHaptic([30, 50, 30]);
       addExpense(newExpense);
       setNewExpense({ category: "housing", amount: 0, isEssential: true });
       setShowAddExpense(false);
     }
   };
 
+  const handleRemoveIncome = (index: number) => {
+    triggerHaptic(20);
+    removeIncomeSource(index);
+  };
+
+  const handleRemoveExpense = (index: number) => {
+    triggerHaptic(20);
+    removeExpense(index);
+  };
+
   const handleContinue = () => {
     if (data.incomeSources.length > 0) {
+      triggerHaptic([30, 50, 30]);
       onNext();
     }
   };
@@ -185,7 +206,10 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddIncome(!showAddIncome)}
+              onClick={() => {
+                triggerHaptic(15);
+                setShowAddIncome(!showAddIncome);
+              }}
               className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover"
             >
               <Plus className="w-4 h-4" />
@@ -228,13 +252,15 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
                     ))}
                   </select>
                 </div>
-                <button
+                <motion.button
                   onClick={handleAddIncome}
                   disabled={newIncome.amount <= 0}
+                  whileHover={newIncome.amount > 0 ? { scale: 1.02 } : {}}
+                  whileTap={newIncome.amount > 0 ? { scale: 0.98 } : {}}
                   className="w-full py-2 rounded-xl bg-primary text-black font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Income
-                </button>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -262,12 +288,14 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removeIncomeSource(index)}
+                    <motion.button
+                      onClick={() => handleRemoveIncome(index)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       className="p-2 rounded-lg hover:bg-error/20 text-muted hover:text-error transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </motion.button>
                   </motion.div>
                 );
               })}
@@ -296,7 +324,10 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddExpense(!showAddExpense)}
+              onClick={() => {
+                triggerHaptic(15);
+                setShowAddExpense(!showAddExpense);
+              }}
               className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover"
             >
               <Plus className="w-4 h-4" />
@@ -346,13 +377,15 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
                     />
                   </div>
                 </div>
-                <button
+                <motion.button
                   onClick={handleAddExpense}
                   disabled={newExpense.amount <= 0}
+                  whileHover={newExpense.amount > 0 ? { scale: 1.02 } : {}}
+                  whileTap={newExpense.amount > 0 ? { scale: 0.98 } : {}}
                   className="w-full py-2 rounded-xl bg-primary text-black font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Expense
-                </button>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -391,12 +424,14 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removeExpense(index)}
+                    <motion.button
+                      onClick={() => handleRemoveExpense(index)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       className="p-2 rounded-lg hover:bg-error/20 text-muted hover:text-error transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </motion.button>
                   </motion.div>
                 );
               })}
@@ -428,6 +463,8 @@ export function FinancialSetupStep({ onNext, onBack }: FinancialSetupStepProps) 
             ? "bg-primary text-black hover:bg-primary-hover"
             : "bg-surface text-muted cursor-not-allowed"
         }`}
+        whileHover={data.incomeSources.length > 0 ? { scale: 1.02, y: -2 } : {}}
+        whileTap={data.incomeSources.length > 0 ? { scale: 0.98 } : {}}
       >
         Continue
       </motion.button>

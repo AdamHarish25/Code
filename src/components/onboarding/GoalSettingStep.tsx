@@ -3,6 +3,7 @@
 /**
  * Step 3: Goal Setting Component
  * User inputs their financial dreams and targets
+ * Enhanced with haptic feedback and touch interactions
  */
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,6 +15,13 @@ import { useState } from "react";
 interface GoalSettingStepProps {
   onNext: () => void;
   onBack: () => void;
+}
+
+// Haptic feedback helper
+function triggerHaptic(pattern: number | number[] = 10) {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(pattern);
+  }
 }
 
 const priorityColors = {
@@ -34,14 +42,21 @@ export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
 
   const handleAddGoal = () => {
     if (newGoal.name && newGoal.targetAmount > 0) {
+      triggerHaptic([30, 50, 30]);
       addGoal(newGoal);
       setNewGoal({ name: "", targetAmount: 0, targetDate: "", priority: "medium" });
       setShowAddGoal(false);
     }
   };
 
+  const handleRemoveGoal = (id: string) => {
+    triggerHaptic(20);
+    removeGoal(id);
+  };
+
   const handleContinue = () => {
     if (data.goals.length > 0 || data.dreamDescription) {
+      triggerHaptic([30, 50, 30]);
       onNext();
     }
   };
@@ -107,7 +122,10 @@ export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowAddGoal(!showAddGoal)}
+            onClick={() => {
+              triggerHaptic(15);
+              setShowAddGoal(!showAddGoal);
+            }}
             className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover"
           >
             <Plus className="w-4 h-4" />
@@ -155,9 +173,14 @@ export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
               </div>
               <div className="flex gap-2 mb-3">
                 {(["low", "medium", "high"] as const).map((priority) => (
-                  <button
+                  <motion.button
                     key={priority}
-                    onClick={() => setNewGoal({ ...newGoal, priority })}
+                    onClick={() => {
+                      triggerHaptic(10);
+                      setNewGoal({ ...newGoal, priority });
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-all ${
                       newGoal.priority === priority
                         ? priorityColors[priority]
@@ -165,16 +188,18 @@ export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
                     }`}
                   >
                     {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-              <button
+              <motion.button
                 onClick={handleAddGoal}
                 disabled={!newGoal.name || newGoal.targetAmount <= 0}
+                whileHover={newGoal.name && newGoal.targetAmount > 0 ? { scale: 1.02 } : {}}
+                whileTap={newGoal.name && newGoal.targetAmount > 0 ? { scale: 0.98 } : {}}
                 className="w-full py-2 rounded-xl bg-primary text-black font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Goal
-              </button>
+              </motion.button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -208,12 +233,14 @@ export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
                   >
                     {goal.priority}
                   </span>
-                  <button
-                    onClick={() => removeGoal(goal.id)}
+                  <motion.button
+                    onClick={() => handleRemoveGoal(goal.id)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     className="p-2 rounded-lg hover:bg-error/20 text-muted hover:text-error transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             ))}
@@ -245,6 +272,8 @@ export function GoalSettingStep({ onNext, onBack }: GoalSettingStepProps) {
             ? "bg-primary text-black hover:bg-primary-hover"
             : "bg-surface text-muted cursor-not-allowed"
         }`}
+        whileHover={(data.goals.length > 0 || data.dreamDescription) ? { scale: 1.02, y: -2 } : {}}
+        whileTap={(data.goals.length > 0 || data.dreamDescription) ? { scale: 0.98 } : {}}
       >
         Continue
       </motion.button>

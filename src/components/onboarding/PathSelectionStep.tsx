@@ -3,6 +3,7 @@
 /**
  * Step 2: Path Selection Component
  * User chooses between Conservative or Active Compounder investment path
+ * Enhanced with haptic feedback and touch interactions
  */
 
 import { motion } from "framer-motion";
@@ -13,6 +14,13 @@ import { InvestmentPath } from "@/types/onboarding";
 interface PathSelectionStepProps {
   onNext: () => void;
   onBack: () => void;
+}
+
+// Haptic feedback helper
+function triggerHaptic(pattern: number | number[] = 10) {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(pattern);
+  }
 }
 
 const investmentPaths = [
@@ -41,11 +49,13 @@ export function PathSelectionStep({ onNext, onBack }: PathSelectionStepProps) {
   const selectedPath = data.investmentPath;
 
   const handleSelect = (path: InvestmentPath) => {
+    triggerHaptic(20);
     setInvestmentPath(path);
   };
 
   const handleContinue = () => {
     if (selectedPath) {
+      triggerHaptic([30, 50, 30]);
       onNext();
     }
   };
@@ -90,13 +100,16 @@ export function PathSelectionStep({ onNext, onBack }: PathSelectionStepProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * index }}
               onClick={() => handleSelect(path.id)}
+              onMouseEnter={() => triggerHaptic(5)}
+              whileHover={{ scale: 1.02, y: -4 }}
+              whileTap={{ scale: 0.98 }}
               className={`relative p-6 rounded-3xl border-2 text-left transition-all duration-300 ${
                 isSelected
-                  ? "border-primary bg-surface"
+                  ? "border-primary bg-surface shadow-xl shadow-primary/10"
                   : "border-border bg-surface hover:border-secondary/50"
               }`}
             >
-              {/* Selection Indicator */}
+              {/* Selection Indicator with Pulse */}
               <motion.div
                 initial={false}
                 animate={{ scale: isSelected ? 1 : 0 }}
@@ -104,13 +117,32 @@ export function PathSelectionStep({ onNext, onBack }: PathSelectionStepProps) {
               >
                 <Check className="w-4 h-4 text-black" />
               </motion.div>
+              
+              {/* Selection Glow */}
+              {isSelected && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/10 to-transparent pointer-events-none"
+                />
+              )}
 
               {/* Icon */}
-              <div
+              <motion.div
+                animate={{ 
+                  y: [0, -5, 0],
+                  rotate: index === 0 ? [0, 1, -1, 0] : [0, -1, 1, 0],
+                }}
+                transition={{ 
+                  duration: 3, 
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: index * 0.5
+                }}
                 className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${path.gradient} flex items-center justify-center mb-4`}
               >
                 <Icon className="w-7 h-7 text-black" />
-              </div>
+              </motion.div>
 
               {/* Content */}
               <h3 className="text-xl font-bold mb-1">{path.title}</h3>
@@ -119,11 +151,25 @@ export function PathSelectionStep({ onNext, onBack }: PathSelectionStepProps) {
 
               {/* Features */}
               <ul className="space-y-2">
-                {path.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-muted">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                {path.features.map((feature, featureIndex) => (
+                  <motion.li
+                    key={feature}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + featureIndex * 0.1 }}
+                    className="flex items-center gap-2 text-sm text-muted"
+                  >
+                    <motion.span
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ 
+                        duration: 2, 
+                        repeat: Infinity,
+                        delay: featureIndex * 0.3
+                      }}
+                      className="w-1.5 h-1.5 rounded-full bg-primary"
+                    />
                     {feature}
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </motion.button>
@@ -143,6 +189,8 @@ export function PathSelectionStep({ onNext, onBack }: PathSelectionStepProps) {
             ? "bg-primary text-black hover:bg-primary-hover"
             : "bg-surface text-muted cursor-not-allowed"
         }`}
+        whileHover={selectedPath ? { scale: 1.02, y: -2 } : {}}
+        whileTap={selectedPath ? { scale: 0.98 } : {}}
       >
         Continue
       </motion.button>

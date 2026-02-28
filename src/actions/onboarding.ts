@@ -5,7 +5,7 @@
 
 "use server";
 
-import { OnboardingData, SmartInsight } from "@/types/onboarding";
+import { OnboardingData } from "@/types/onboarding";
 
 interface OnboardingResult {
   success: boolean;
@@ -34,7 +34,7 @@ export async function finishOnboarding(
     };
   } catch (error) {
     console.error("Failed to generate insights:", error);
-    
+
     // Return a fallback insight if API fails
     return {
       success: true,
@@ -104,6 +104,7 @@ async function callQwenAPI(prompt: string): Promise<string> {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        "X-DashScope-SSE": "disable",
       },
       body: JSON.stringify({
         model: "qwen-turbo",
@@ -128,11 +129,22 @@ async function callQwenAPI(prompt: string): Promise<string> {
     });
 
     if (!response.ok) {
-      throw new Error(`Qwen API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Qwen API error (${response.status}):`, errorText);
+      throw new Error(`Qwen API error: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
-    return result.output?.text || "Unable to generate insight at this time.";
+    
+    // Handle different response formats
+    if (result.output?.text) {
+      return result.output.text;
+    } else if (result.output?.choices?.[0]?.message?.content) {
+      return result.output.choices[0].message.content;
+    } else {
+      console.warn("Unexpected Qwen API response format:", result);
+      return "Unable to generate insight at this time.";
+    }
   } catch (error) {
     console.error("Qwen API call failed:", error);
     throw error;
