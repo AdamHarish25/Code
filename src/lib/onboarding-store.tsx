@@ -18,10 +18,9 @@ import {
 import { saveOnboardingData } from "@/actions/onboarding-db";
 
 const initialOnboardingData: OnboardingData = {
-  welcomed: false,
   investmentPath: null,
-  goals: [],
   dreamDescription: "",
+  goals: [],
   incomeSources: [],
   expenses: [],
 };
@@ -44,7 +43,6 @@ interface OnboardingContextType {
   goToStep: (step: OnboardingStep) => void;
 
   // Data mutations
-  setWelcomed: (welcomed: boolean) => void;
   setInvestmentPath: (path: InvestmentPath) => void;
   addGoal: (goal: Omit<FinancialGoal, "id">) => void;
   updateGoal: (id: string, updates: Partial<FinancialGoal>) => void;
@@ -65,7 +63,7 @@ interface OnboardingContextType {
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
-const stepOrder: OnboardingStep[] = ["welcome", "path", "goals", "financial", "complete"];
+const stepOrder: OnboardingStep[] = ["path", "dream", "goals", "financial", "auth", "complete"];
 
 interface OnboardingProviderProps {
   children: ReactNode;
@@ -73,7 +71,7 @@ interface OnboardingProviderProps {
 
 export function OnboardingProvider({ children }: OnboardingProviderProps) {
   const [userId, setUserId] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>("path");
   const [data, setData] = useState<OnboardingData>(initialOnboardingData);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -100,10 +98,6 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   }, []);
 
   // Data mutations
-  const setWelcomed = useCallback((welcomed: boolean) => {
-    setData((prev) => ({ ...prev, welcomed }));
-  }, []);
-
   const setInvestmentPath = useCallback((path: InvestmentPath) => {
     setData((prev) => ({ ...prev, investmentPath: path }));
   }, []);
@@ -212,14 +206,16 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   // Validation logic
   const canProceed = React.useMemo(() => {
     switch (currentStep) {
-      case "welcome":
-        return true;
       case "path":
         return data.investmentPath !== null;
+      case "dream":
+        return !!data.dreamDescription;
       case "goals":
-        return data.goals.length > 0 || !!data.dreamDescription;
+        return data.goals.length > 0;
       case "financial":
         return data.incomeSources.length > 0;
+      case "auth":
+        return true; // Can proceed to create account or skip
       default:
         return true;
     }
@@ -241,7 +237,6 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
         nextStep,
         previousStep,
         goToStep,
-        setWelcomed,
         setInvestmentPath,
         addGoal,
         updateGoal,

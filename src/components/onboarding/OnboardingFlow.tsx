@@ -4,6 +4,7 @@
  * OnboardingFlow Component
  * Main container for the multi-step onboarding experience
  * Manages step transitions with Framer Motion animations
+ * Updated: Auth step moved to end (Step 5)
  */
 
 import { useState, useCallback } from "react";
@@ -12,10 +13,11 @@ import { ChevronLeft, Check, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { OnboardingStep } from "@/types/onboarding";
-import { WelcomeStep } from "./WelcomeStep";
 import { PathSelectionStep } from "./PathSelectionStep";
+import { DreamSettingStep } from "./DreamSettingStep";
 import { GoalSettingStep } from "./GoalSettingStep";
 import { FinancialSetupStep } from "./FinancialSetupStep";
+import { AuthStep } from "./AuthStep";
 import { finishOnboarding } from "@/actions/onboarding";
 
 interface StepIndicatorProps {
@@ -25,7 +27,7 @@ interface StepIndicatorProps {
 }
 
 function StepIndicator({ currentStep, totalSteps, currentStepIndex }: StepIndicatorProps) {
-  const steps: OnboardingStep[] = ["welcome", "path", "goals", "financial"];
+  const steps: OnboardingStep[] = ["path", "dream", "goals", "financial", "auth"];
 
   if (currentStep === "complete") return null;
 
@@ -94,14 +96,16 @@ function OnboardingContent() {
 
   const renderStep = () => {
     switch (currentStep) {
-      case "welcome":
-        return <WelcomeStep onNext={handleNext} />;
       case "path":
         return <PathSelectionStep onNext={handleNext} />;
+      case "dream":
+        return <DreamSettingStep onNext={handleNext} />;
       case "goals":
         return <GoalSettingStep onNext={handleNext} />;
       case "financial":
-        return <FinancialSetupStep onNext={handleFinish} />;
+        return <FinancialSetupStep onNext={handleNext} />;
+      case "auth":
+        return <AuthStep onComplete={handleFinish} />;
       case "complete":
         return (
           <motion.div
@@ -152,7 +156,7 @@ function OnboardingContent() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          {currentStep !== "welcome" && currentStep !== "complete" && (
+          {currentStep !== "path" && currentStep !== "complete" && (
             <motion.button
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}

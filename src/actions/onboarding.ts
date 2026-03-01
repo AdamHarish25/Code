@@ -90,8 +90,8 @@ async function callQwenAPI(prompt: string): Promise<string> {
   if (!apiKey) {
     console.warn("QWEN_API_KEY not configured, using fallback insight");
     return generateFallbackInsight({
-      welcomed: true,
       investmentPath: null,
+      dreamDescription: "",
       goals: [],
       incomeSources: [],
       expenses: [],
@@ -182,12 +182,16 @@ export async function validateOnboardingData(data: OnboardingData): Promise<{
 }> {
   const errors: string[] = [];
 
-  if (!data.welcomed) {
-    errors.push("Welcome step not completed");
-  }
-
   if (!data.investmentPath) {
     errors.push("Investment path not selected");
+  }
+
+  if (!data.dreamDescription) {
+    errors.push("Dream description is required");
+  }
+
+  if (data.goals.length === 0) {
+    errors.push("At least one goal is required");
   }
 
   if (data.incomeSources.length === 0) {

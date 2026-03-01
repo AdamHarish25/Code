@@ -5,6 +5,8 @@
 
 export type InvestmentPath = "conservative" | "active-compounder";
 
+export type OnboardingStep = "path" | "dream" | "goals" | "financial" | "auth" | "complete";
+
 export interface FinancialGoal {
   id: string;
   name: string;
@@ -26,20 +28,19 @@ export interface ExpenseCategory {
 }
 
 export interface OnboardingData {
-  // Step 1: Welcome (acknowledged)
-  welcomed: boolean;
-  
-  // Step 2: Path Selection
+  // Step 1: Investment Path Selection
   investmentPath: InvestmentPath | null;
-  
+
+  // Step 2: Dream Description
+  dreamDescription: string;
+
   // Step 3: Goal Setting
   goals: FinancialGoal[];
-  dreamDescription?: string;
-  
+
   // Step 4: Financial Setup
   incomeSources: IncomeSource[];
   expenses: ExpenseCategory[];
-  
+
   // Metadata
   completedAt?: string;
 }
@@ -54,5 +55,3 @@ export interface SmartInsight {
     savings: number;
   };
 }
-
-export type OnboardingStep = "welcome" | "path" | "goals" | "financial" | "complete";

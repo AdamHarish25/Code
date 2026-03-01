@@ -26,10 +26,9 @@ export async function saveOnboardingData(
     // Start a transaction-like process
     const operations = [];
 
-    // 1. Update user profile
+    // 1. Update user profile metadata
     operations.push(
-      supabaseAdmin.auth.admin.updateUserById({
-        id: userId,
+      supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: {
           onboarding_completed: true,
           investment_path: data.investmentPath,
@@ -41,7 +40,7 @@ export async function saveOnboardingData(
     // 2. Create/update profile in public.profiles
     if (data.investmentPath) {
       operations.push(
-        supabaseAdmin
+        (supabaseAdmin as any)
           .from("profiles")
           .upsert({
             id: userId,
@@ -62,7 +61,7 @@ export async function saveOnboardingData(
       }));
 
       operations.push(
-        supabaseAdmin.from("financial_goals").insert(goalsToInsert)
+        (supabaseAdmin as any).from("financial_goals").insert(goalsToInsert)
       );
     }
 
@@ -78,7 +77,7 @@ export async function saveOnboardingData(
       }));
 
       operations.push(
-        supabaseAdmin.from("income_sources").insert(incomeToInsert)
+        (supabaseAdmin as any).from("income_sources").insert(incomeToInsert)
       );
     }
 
@@ -95,7 +94,7 @@ export async function saveOnboardingData(
       }));
 
       operations.push(
-        supabaseAdmin.from("category_allocations").insert(expensesToInsert)
+        (supabaseAdmin as any).from("category_allocations").insert(expensesToInsert)
       );
     }
 
@@ -139,21 +138,21 @@ export async function getOnboardingData(userId: string) {
     }
 
     const [profile, goals, income, expenses] = await Promise.all([
-      supabaseAdmin
+      (supabaseAdmin as any)
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single(),
-      supabaseAdmin
+      (supabaseAdmin as any)
         .from("financial_goals")
         .select("*")
         .eq("user_id", userId),
-      supabaseAdmin
+      (supabaseAdmin as any)
         .from("income_sources")
         .select("*")
         .eq("user_id", userId)
         .eq("is_active", true),
-      supabaseAdmin
+      (supabaseAdmin as any)
         .from("category_allocations")
         .select("*")
         .eq("user_id", userId),
@@ -178,7 +177,7 @@ export async function checkOnboardingComplete(userId: string): Promise<boolean> 
   try {
     if (!userId) return false;
 
-    const { data } = await supabaseAdmin
+    const { data } = await (supabaseAdmin as any)
       .from("profiles")
       .select("investment_path")
       .eq("id", userId)

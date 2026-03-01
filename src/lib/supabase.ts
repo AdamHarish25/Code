@@ -1,6 +1,7 @@
 /**
  * Supabase Client Configuration
  * Unified database connection for Duitly
+ * Requires Supabase credentials to be configured
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -19,53 +20,45 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * Create a mock Supabase client for development without credentials
+ * Validate Supabase configuration
+ * Throws error if not configured properly
  */
-function createMockClient() {
-  return {
-    from: () => ({
-      select: () => Promise.resolve({ data: [], error: null }),
-      insert: () => Promise.resolve({ data: null, error: null }),
-      update: () => Promise.resolve({ data: null, error: null }),
-      delete: () => Promise.resolve({ data: null, error: null }),
-      eq: () => Promise.resolve({ data: [], error: null }),
-    }),
-    rpc: () => Promise.resolve({ data: null, error: null }),
-    channel: () => ({
-      on: () => ({ subscribe: () => {} }),
-    }),
-  };
+function validateConfig() {
+  if (!supabaseUrl) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL is not configured. Please add it to your .env.local file."
+    );
+  }
+  if (!supabaseAnonKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured. Please add it to your .env.local file."
+    );
+  }
 }
 
 /**
  * Client-side Supabase client
  * Uses anon key with RLS policies
- * Falls back to mock client if not configured
  */
-export const supabase = isSupabaseConfigured()
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : createMockClient() as any;
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
 
 /**
  * Server-side Supabase client
  * Uses service role key (bypasses RLS)
  * ONLY use in server components and server actions
- * Falls back to mock client if not configured
  */
-export const supabaseAdmin = isSupabaseConfigured() && supabaseServiceKey
-  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : createMockClient() as any;
+export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 /**
  * Get Supabase client based on context

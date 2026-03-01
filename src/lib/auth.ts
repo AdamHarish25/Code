@@ -1,11 +1,12 @@
 /**
  * Supabase Auth Utilities
  * Email-based authentication functions
+ * Requires Supabase to be configured
  */
 
 "use server";
 
-import { supabaseAdmin } from "./supabase";
+import { supabaseAdmin, isSupabaseConfigured } from "./supabase";
 import { headers } from "next/headers";
 
 /**
@@ -13,6 +14,14 @@ import { headers } from "next/headers";
  */
 export async function signUpWithEmail(email: string, password: string) {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: "Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.",
+      };
+    }
+
     if (!email || !password) {
       return {
         success: false,
@@ -75,6 +84,14 @@ export async function signUpWithEmail(email: string, password: string) {
  */
 export async function signInWithEmail(email: string, password: string) {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: "Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.",
+      };
+    }
+
     if (!email || !password) {
       return {
         success: false,
