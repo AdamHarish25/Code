@@ -536,7 +536,16 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     });
   }, []);
 
-  const removeIncomeSource = useCallback((id: string) => {
+  const removeIncomeSource = useCallback(async (id: string) => {
+    // Delete from Supabase
+    try {
+      const { deleteIncomeSource: deleteService } = await import("@/lib/supabase-services");
+      await deleteService(id);
+    } catch (error) {
+      console.error("Failed to delete income source from Supabase:", error);
+    }
+    
+    // Update local state
     setState((prev) => {
       const newSources = prev.incomeSources.filter((s) => s.id !== id);
       const totalIncome = calculateTotalIncome(newSources);
@@ -605,7 +614,16 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     });
   }, []);
 
-  const removeCategoryAllocation = useCallback((id: string) => {
+  const removeCategoryAllocation = useCallback(async (id: string) => {
+    // Delete from Supabase
+    try {
+      const { deleteCategoryAllocation: deleteService } = await import("@/lib/supabase-services");
+      await deleteService(id);
+    } catch (error) {
+      console.error("Failed to delete category allocation from Supabase:", error);
+    }
+    
+    // Update local state
     setState((prev) => {
       const newAllocations = prev.categoryAllocations.filter((a) => a.id !== id);
       const totalAllocated = newAllocations.reduce((sum, a) => sum + a.allocatedAmount, 0);

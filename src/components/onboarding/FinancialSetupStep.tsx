@@ -35,7 +35,7 @@ const frequencies = [
 ] as const;
 
 export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
-  const { data, addIncomeSource, addExpense } = useOnboarding();
+  const { data, addIncomeSource, addExpense, removeIncomeSource } = useOnboarding();
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [newIncome, setNewIncome] = useState({
     amount: "",
@@ -53,6 +53,10 @@ export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
       setNewIncome({ amount: "", frequency: "monthly", type: "salary" });
       setShowAddIncome(false);
     }
+  };
+
+  const handleRemoveIncome = (index: number) => {
+    removeIncomeSource(index);
   };
 
   const handleContinue = () => {
@@ -221,7 +225,7 @@ export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
                     {income.amount.toLocaleString()}
                   </p>
                   <button
-                    onClick={() => {}}
+                    onClick={() => handleRemoveIncome(index)}
                     className="p-2 rounded-lg hover:bg-danger/10 transition-colors"
                   >
                     <Trash2 className="w-4 h-4 text-danger" />
