@@ -186,10 +186,16 @@ export function WelcomePage() {
 
           {/* Additional Info */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="mt-12 text-center"
+            initial={{ opacity: 0, rotate: -15, scale: 0.8, y: 50, x: -50 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1, y: 0, x: 0 }}
+            transition={{
+              delay: 0.8,
+              type: "spring",
+              stiffness: 200,
+              damping: 12,
+            }}
+            whileHover={{ scale: 1.05, rotate: 2 }}
+            className="mt-12 text-center p-6 rounded-2xl bg-surface border-2 border-primary/20 shadow-lg shadow-primary/10 cursor-pointer"
           >
             {/* <p className="text-sm text-muted">
               By continuing, you agree to our{" "}
@@ -202,8 +208,22 @@ export function WelcomePage() {
               </button>
             </p> */}
 
-            <p>
-              Searching for a github link? We Gotch-U! Checkout our <a className="text-primary hover:text-primary-hover transition-colors" href="https://github.com/AdamHarish25/Code" target="_blank" rel="noopener noreferrer">GitHub</a> for more info.
+            <p className="font-medium text-lg flex items-center justify-center gap-2 flex-wrap">
+              <motion.span
+                animate={{ rotate: [0, 15, -15, 0] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="text-2xl inline-block"
+              >
+                👀
+              </motion.span>
+              Searching for a github link? We Gotch-U! Checkout our <a className="text-primary font-bold hover:text-primary-hover transition-colors underline decoration-2 underline-offset-4" href="https://github.com/AdamHarish25/Code" target="_blank" rel="noopener noreferrer">GitHub</a> for more info.
+              <motion.span
+                animate={{ y: [0, -5, 0] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className="text-2xl inline-block"
+              >
+                🚀
+              </motion.span>
             </p>
           </motion.div>
         </motion.div>
