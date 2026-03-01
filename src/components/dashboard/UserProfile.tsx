@@ -131,15 +131,15 @@ export function UserProfile() {
             <div className="p-2">
               <button
                 onClick={() => {
-                  
                   setShowMenu(false);
+                  router.push("/settings");
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-background transition-colors text-sm"
               >
                 <Settings className="w-4 h-4 text-muted" />
                 <span>Settings</span>
               </button>
-              
+
               <button
                 onClick={handleSignOut}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-danger/10 transition-colors text-sm text-danger"
