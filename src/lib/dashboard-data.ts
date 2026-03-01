@@ -13,6 +13,7 @@ export async function fetchDashboardData() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
+      console.warn("[Dashboard] No authenticated user");
       return {
         transactions: [],
         incomeSources: [],
@@ -25,55 +26,67 @@ export async function fetchDashboardData() {
     }
 
     const userId = user.id;
+    console.log("[Dashboard] Fetching data for user:", userId);
+    console.log("[Dashboard] User email:", user.email);
 
-    // Fetch all data in parallel
-    const [
-      transactionsRes,
-      incomeSourcesRes,
-      allocationsRes,
-      goalsRes,
-      insightsRes,
-      notificationsRes,
-      allocationStatusRes,
-    ] = await Promise.all([
-      supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("date", { ascending: false })
-        .limit(50),
-      supabase
-        .from("income_sources")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("category_allocations")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("financial_goals")
-        .select("*")
-        .eq("user_id", userId)
-        .order("priority", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("budget_insights")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(10),
-      supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      (supabase as any)
-        .rpc("get_allocation_status", { p_user_id: userId }),
-    ]);
+    // Fetch each table separately with detailed logging
+    console.log("[Dashboard] Fetching transactions...");
+    const transactionsRes = await (supabase as any)
+      .from("transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .limit(50);
+    console.log("[Dashboard] Transactions result:", transactionsRes);
+
+    console.log("[Dashboard] Fetching income sources...");
+    const incomeSourcesRes = await (supabase as any)
+      .from("income_sources")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+    console.log("[Dashboard] Income sources result:", incomeSourcesRes);
+
+    console.log("[Dashboard] Fetching category allocations...");
+    const allocationsRes = await (supabase as any)
+      .from("category_allocations")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    console.log("[Dashboard] Allocations result:", allocationsRes);
+
+    console.log("[Dashboard] Fetching financial goals...");
+    const goalsRes = await (supabase as any)
+      .from("financial_goals")
+      .select("*")
+      .eq("user_id", userId)
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: false });
+    console.log("[Dashboard] Goals result:", goalsRes);
+
+    console.log("[Dashboard] Fetching budget insights...");
+    const insightsRes = await (supabase as any)
+      .from("budget_insights")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    console.log("[Dashboard] Insights result:", insightsRes);
+
+    console.log("[Dashboard] Fetching notifications...");
+    const notificationsRes = await (supabase as any)
+      .from("notifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    console.log("[Dashboard] Notifications result:", notificationsRes);
+
+    console.log("[Dashboard] Fetching allocation status...");
+    const allocationStatusRes = await (supabase as any)
+      .rpc("get_allocation_status", { p_user_id: userId });
+    console.log("[Dashboard] Allocation status result:", allocationStatusRes);
 
     // Handle errors gracefully
     const transactions = transactionsRes.error ? [] : transactionsRes.data || [];
@@ -83,6 +96,14 @@ export async function fetchDashboardData() {
     const budgetInsights = insightsRes.error ? [] : insightsRes.data || [];
     const notifications = notificationsRes.error ? [] : notificationsRes.data || [];
     const allocationStatus = allocationStatusRes.error ? null : allocationStatusRes.data;
+
+    console.log("[Dashboard] FINAL DATA:", {
+      transactions: transactions.length,
+      incomeSources: incomeSources.length,
+      categoryAllocations: categoryAllocations.length,
+      goals: financialGoals.length,
+      allocationStatus,
+    });
 
     return {
       transactions,

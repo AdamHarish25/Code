@@ -20,6 +20,7 @@ import {
 import { useDashboard } from "@/lib/dashboard-store";
 import { getSmartInsight } from "@/actions/insights";
 import { formatRelativeTime } from "@/lib/utils";
+import { createBudgetInsight as createBudgetInsightService } from "@/lib/supabase-services";
 
 const insightIcons = {
   advice: Lightbulb,
@@ -36,7 +37,7 @@ const insightColors = {
 };
 
 export function InsightsView() {
-  const { insights, addInsight, markInsightRead } = useDashboard();
+  const { insights, addInsight, markInsightRead, refreshData } = useDashboard();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRefreshInsight = async () => {
@@ -44,11 +45,14 @@ export function InsightsView() {
     try {
       const result = await getSmartInsight();
       if (result.success && result.insight) {
-        addInsight({
+        // Save to Supabase through the context
+        await addInsight({
           title: "New Financial Insight",
           content: result.insight,
           type: "advice",
         });
+        // Also refresh data to get latest from database
+        await refreshData();
       }
     } catch (error) {
       console.error("Failed to refresh insight:", error);
@@ -57,47 +61,7 @@ export function InsightsView() {
     }
   };
 
-  // Sample insights for demo
-  const sampleInsights = [
-    {
-      id: "1",
-      title: "Spending Pattern Alert",
-      content:
-        "Your dining expenses increased by 23% this month. Consider meal prepping to save up to $150 monthly.",
-      type: "alert" as const,
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-      isRead: false,
-    },
-    {
-      id: "2",
-      title: "Savings Opportunity",
-      content:
-        "You have $500 extra this month. Consider increasing your emergency fund contribution by 15%.",
-      type: "opportunity" as const,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      isRead: false,
-    },
-    {
-      id: "3",
-      title: "Budget Achievement",
-      content:
-        "Great job! You've stayed under your entertainment budget for 3 consecutive months. Keep it up!",
-      type: "achievement" as const,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      isRead: true,
-    },
-    {
-      id: "4",
-      title: "Investment Tip",
-      content:
-        "Based on your conservative profile, consider allocating 10% more to index funds for steady growth.",
-      type: "advice" as const,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-      isRead: true,
-    },
-  ];
-
-  const displayInsights = insights.length > 0 ? insights : sampleInsights;
+  const displayInsights = insights;
 
   return (
     <div className="px-4 md:px-6 py-6">

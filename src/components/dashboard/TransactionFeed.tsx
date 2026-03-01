@@ -2,10 +2,9 @@
 
 /**
  * TransactionFeed Component
- * Displays recent transactions with auto-categorization
+ * Displays recent transactions from Supabase
  */
 
-import { useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard,
@@ -23,80 +22,7 @@ interface TransactionFeedProps {
 }
 
 export function TransactionFeed({ limit, showAll }: TransactionFeedProps) {
-  const { transactions, addTransaction } = useDashboard();
-
-  const loadSampleTransactions = useCallback(() => {
-    const sampleTransactions: Transaction[] = [
-      {
-        id: "1",
-        merchant: "McDonald's",
-        amount: 12.50,
-        category: "food",
-        date: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        status: "completed",
-        type: "expense",
-        isAutoCategorized: true,
-      },
-      {
-        id: "2",
-        merchant: "Uber",
-        amount: 24.00,
-        category: "transport",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        status: "completed",
-        type: "expense",
-        isAutoCategorized: true,
-      },
-      {
-        id: "3",
-        merchant: "Salary Deposit",
-        amount: 3500.00,
-        category: "salary",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        status: "completed",
-        type: "income",
-        isAutoCategorized: false,
-      },
-      {
-        id: "4",
-        merchant: "Netflix",
-        amount: 15.99,
-        category: "entertainment",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-        status: "completed",
-        type: "expense",
-        isAutoCategorized: true,
-      },
-      {
-        id: "5",
-        merchant: "Starbucks",
-        amount: 6.75,
-        category: "food",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-        status: "completed",
-        type: "expense",
-        isAutoCategorized: true,
-      },
-      {
-        id: "6",
-        merchant: "Electric Company",
-        amount: 120.00,
-        category: "utilities",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-        status: "completed",
-        type: "expense",
-        isAutoCategorized: true,
-      },
-    ];
-
-    sampleTransactions.forEach((t) => addTransaction(t));
-  }, [addTransaction]);
-
-  useEffect(() => {
-    if (transactions.length === 0) {
-      loadSampleTransactions();
-    }
-  }, [transactions.length, loadSampleTransactions]);
+  const { transactions } = useDashboard();
 
   const displayedTransactions = limit
     ? transactions.slice(0, limit)

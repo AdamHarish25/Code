@@ -10,6 +10,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, DollarSign, Edit2, Trash2, Save } from "lucide-react";
 import { useDashboard } from "@/lib/dashboard-store";
 import { IncomeSourceDetail } from "@/types/dashboard";
+import {
+  createIncomeSource as createIncomeSourceService,
+  updateIncomeSource as updateIncomeSourceService,
+  deleteIncomeSource as deleteIncomeSourceService,
+} from "@/lib/supabase-services";
 
 interface IncomeFormData {
   name: string;
@@ -41,38 +46,51 @@ const frequencies: { value: IncomeSourceDetail["frequency"]; label: string }[] =
 ];
 
 export function IncomeManagementModule() {
-  const { incomeSources, addIncomeSource, updateIncomeSource, removeIncomeSource } = useDashboard();
+  const { incomeSources, addIncomeSource, updateIncomeSource, removeIncomeSource, refreshData } = useDashboard();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<IncomeFormData>(initialFormData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setIsSubmitting(true);
+
     if (!formData.name || !formData.amount) return;
 
     const amount = parseFloat(formData.amount);
-    if (isNaN(amount) || amount <= 0) return;
-
-    if (editingId) {
-      updateIncomeSource(editingId, {
-        name: formData.name,
-        amount,
-        frequency: formData.frequency,
-        type: formData.type,
-      });
-      setEditingId(null);
-    } else {
-      addIncomeSource({
-        name: formData.name,
-        amount,
-        frequency: formData.frequency,
-        type: formData.type,
-      });
+    if (isNaN(amount) || amount <= 0) {
+      setIsSubmitting(false);
+      return;
     }
 
-    setFormData(initialFormData);
-    setIsAdding(false);
+    try {
+      if (editingId) {
+        await updateIncomeSourceService(editingId, {
+          name: formData.name,
+          amount,
+          frequency: formData.frequency,
+          type: formData.type,
+        });
+        setEditingId(null);
+      } else {
+        await createIncomeSourceService({
+          name: formData.name,
+          amount,
+          frequency: formData.frequency,
+          type: formData.type,
+        });
+      }
+
+      // Refresh data from Supabase
+      await refreshData();
+      setFormData(initialFormData);
+      setIsAdding(false);
+    } catch (error) {
+      console.error("Failed to save income source:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEdit = (source: IncomeSourceDetail) => {
@@ -112,6 +130,15 @@ export function IncomeManagementModule() {
     (sum, source) => sum + calculateMonthlyIncome(source),
     0
   );
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteIncomeSourceService(id);
+      await refreshData();
+    } catch (error) {
+      console.error("Failed to delete income source:", error);
+    }
+  };
 
   return (
     <motion.div
@@ -305,7 +332,7 @@ export function IncomeManagementModule() {
                       <Edit2 className="w-4 h-4 text-muted" />
                     </button>
                     <button
-                      onClick={() => removeIncomeSource(source.id)}
+                      onClick={() => handleDelete(source.id)}
                       className="p-2 rounded-lg hover:bg-danger/10 transition-colors"
                     >
                       <Trash2 className="w-4 h-4 text-danger" />

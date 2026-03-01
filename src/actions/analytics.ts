@@ -75,19 +75,26 @@ export interface AIInsight {
  * Get expenses summary with period comparison
  */
 export async function getExpensesSummary(
-  userId: string,
   startDate?: string,
   endDate?: string
 ): Promise<ExpensesSummary | null> {
   try {
     const supabase = getSupabaseClient();
+    
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn("[Analytics] No authenticated user");
+      return null;
+    }
+    
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const end = endDate || new Date().toISOString().split("T")[0];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_expenses_summary", {
-        p_user_id: userId,
+        p_user_id: user.id,
         p_start_date: start,
         p_end_date: end,
       });
@@ -104,17 +111,24 @@ export async function getExpensesSummary(
  * Get income vs expenses trend by year
  */
 export async function getIncomeExpensesTrend(
-  userId: string,
   years?: number[]
 ): Promise<TrendData[]> {
   try {
     const supabase = getSupabaseClient();
+    
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn("[Analytics] No authenticated user");
+      return [];
+    }
+    
     const trendYears = years || [2024, 2025, 2026];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_income_expenses_trend", {
-        p_user_id: userId,
+        p_user_id: user.id,
         p_years: trendYears,
       });
 
@@ -130,19 +144,23 @@ export async function getIncomeExpensesTrend(
  * Get category breakdown for period
  */
 export async function getCategoryBreakdown(
-  userId: string,
   startDate?: string,
   endDate?: string
 ): Promise<CategoryBreakdown[]> {
   try {
     const supabase = getSupabaseClient();
+    
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const end = endDate || new Date().toISOString().split("T")[0];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_category_breakdown", {
-        p_user_id: userId,
+        p_user_id: user.id,
         p_start_date: start,
         p_end_date: end,
       });
@@ -159,19 +177,23 @@ export async function getCategoryBreakdown(
  * Get expenses by account/category with budget comparison
  */
 export async function getExpensesByAccount(
-  userId: string,
   startDate?: string,
   endDate?: string
 ): Promise<ExpensesByAccount[]> {
   try {
     const supabase = getSupabaseClient();
+    
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const end = endDate || new Date().toISOString().split("T")[0];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_expenses_by_account", {
-        p_user_id: userId,
+        p_user_id: user.id,
         p_start_date: start,
         p_end_date: end,
       });
@@ -188,7 +210,6 @@ export async function getExpensesByAccount(
  * Get transactions for specific category
  */
 export async function getCategoryTransactions(
-  userId: string,
   category: string,
   startDate?: string,
   endDate?: string,
@@ -196,13 +217,18 @@ export async function getCategoryTransactions(
 ): Promise<CategoryDetail | null> {
   try {
     const supabase = getSupabaseClient();
+    
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const end = endDate || new Date().toISOString().split("T")[0];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_category_transactions", {
-        p_user_id: userId,
+        p_user_id: user.id,
         p_category: category,
         p_start_date: start,
         p_end_date: end,

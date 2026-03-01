@@ -20,7 +20,17 @@ import {
   CategoryAllocation,
   AllocationStatus,
 } from "@/types/dashboard";
-import { fetchDashboardData, createTransaction, createIncomeSource, createCategoryAllocation, createFinancialGoal } from "@/lib/dashboard-data";
+import { fetchAllDashboardData } from "@/lib/supabase-services";
+import {
+  createTransaction as createTransactionService,
+  createIncomeSource as createIncomeSourceService,
+  createCategoryAllocation as createCategoryAllocationService,
+  createFinancialGoal as createFinancialGoalService,
+  addGoalProgress as addGoalProgressService,
+  updateCategoryAllocation as updateCategoryAllocationService,
+  createBudgetInsight as createBudgetInsightService,
+  createNotification as createNotificationService,
+} from "@/lib/supabase-services";
 import { supabase } from "@/lib/supabase";
 
 interface DashboardState {
@@ -117,51 +127,140 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   // Load real data from Supabase on mount
   useEffect(() => {
     const loadData = async () => {
-      const data = await fetchDashboardData();
-      
-      setState((prev) => ({
-        ...prev,
-        transactions: transformTransactions(data.transactions),
-        incomeSources: transformIncomeSources(data.incomeSources),
-        categoryAllocations: transformAllocations(data.categoryAllocations),
-        goals: transformGoals(data.financialGoals),
-        insights: transformInsights(data.budgetInsights),
-        notifications: transformNotifications(data.notifications),
-        allocationStatus: data.allocationStatus,
-        summary: calculateSummaryFromData(
-          transformTransactions(data.transactions),
-          data.allocationStatus
-        ),
-        lastUpdated: new Date(),
-      }));
-      
+      console.log("[Dashboard] Starting data load...");
+      setState((prev) => ({ ...prev, isLoading: true }));
+
+      try {
+        // Check Supabase configuration
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        if (!supabaseUrl || !supabaseKey) {
+          console.error("[Dashboard] ❌ Supabase not configured!");
+          console.error("[Dashboard] Please create .env.local with:");
+          console.error("[Dashboard]   NEXT_PUBLIC_SUPABASE_URL=your-url");
+          console.error("[Dashboard]   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-key");
+          console.error("[Dashboard] See .env.local.example for template");
+          setState((prev) => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        // Wait for auth session to be restored
+        console.log("[Dashboard] Waiting for auth session...");
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          console.warn("[Dashboard] ⚠️ No active session - waiting for auth...");
+          // Wait a bit for auth to initialize
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Check again
+          const { data: { session: newSession } } = await supabase.auth.getSession();
+          if (!newSession) {
+            console.warn("[Dashboard] ⚠️ Still no session after wait");
+            setState((prev) => ({ ...prev, isLoading: false }));
+            return;
+          }
+        }
+
+        // Get authenticated user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user) {
+          console.warn("[Dashboard] ⚠️ No authenticated user:", authError?.message);
+          console.warn("[Dashboard] User must sign in first");
+          setState((prev) => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        console.log("[Dashboard] ✅ Authenticated user:", user.email, user.id);
+
+        const data = await fetchAllDashboardData();
+
+        console.log("[Dashboard] ✅ Raw data from Supabase:");
+        console.log("  - Transactions:", data.transactions?.length || 0);
+        console.log("  - Income Sources:", data.incomeSources?.length || 0);
+        console.log("  - Allocations:", data.categoryAllocations?.length || 0);
+        console.log("  - Goals:", data.financialGoals?.length || 0);
+        console.log("  - Insights:", data.budgetInsights?.length || 0);
+        console.log("  - Allocation Status:", data.allocationStatus);
+
+        const transformedIncome = transformIncomeSources(data.incomeSources || []);
+        const transformedAllocations = transformAllocations(data.categoryAllocations || []);
+        const transformedGoals = transformGoals(data.financialGoals || []);
+
+        console.log("[Dashboard] ✅ Transformed data:");
+        console.log("  - Income:", transformedIncome);
+        console.log("  - Allocations:", transformedAllocations);
+        console.log("  - Goals:", transformedGoals);
+
+        setState((prev) => ({
+          ...prev,
+          transactions: transformTransactions(data.transactions || []),
+          incomeSources: transformedIncome,
+          categoryAllocations: transformedAllocations,
+          goals: transformedGoals,
+          insights: transformInsights(data.budgetInsights || []),
+          notifications: transformNotifications(data.notifications || []),
+          allocationStatus: data.allocationStatus,
+          summary: calculateSummaryFromData(
+            transformTransactions(data.transactions || []),
+            data.allocationStatus
+          ),
+          isLoading: false,
+          lastUpdated: new Date(),
+        }));
+
+        console.log("[Dashboard] ✅ Dashboard state updated successfully");
+      } catch (error) {
+        console.error("[Dashboard] ❌ Load data error:", error);
+        setState((prev) => ({ ...prev, isLoading: false }));
+      }
+
       setIsInitialized(true);
     };
 
     loadData();
   }, []);
 
-  // Subscribe to real-time changes
+  // Subscribe to real-time auth changes
   useEffect(() => {
     if (!isInitialized) return;
 
+    console.log("[Dashboard] Setting up auth state listener...");
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[Dashboard] Auth state changed:", event, session?.user?.email);
+      
       if (event === "SIGNED_IN" && session) {
         // Reload data when user signs in
-        fetchDashboardData().then((data) => {
+        console.log("[Dashboard] User signed in, reloading data...");
+        fetchAllDashboardData().then((data) => {
           setState((prev) => ({
             ...prev,
-            transactions: transformTransactions(data.transactions),
-            incomeSources: transformIncomeSources(data.incomeSources),
-            categoryAllocations: transformAllocations(data.categoryAllocations),
-            goals: transformGoals(data.financialGoals),
+            transactions: transformTransactions(data.transactions || []),
+            incomeSources: transformIncomeSources(data.incomeSources || []),
+            categoryAllocations: transformAllocations(data.categoryAllocations || []),
+            goals: transformGoals(data.financialGoals || []),
+            allocationStatus: data.allocationStatus,
+            summary: calculateSummaryFromData(
+              transformTransactions(data.transactions || []),
+              data.allocationStatus
+            ),
             lastUpdated: new Date(),
           }));
+          console.log("[Dashboard] ✅ Data reloaded after sign in");
         });
+      }
+      
+      if (event === "SIGNED_OUT") {
+        // Clear data when user signs out
+        console.log("[Dashboard] User signed out, clearing data...");
+        setState(initialState);
       }
     });
 
     return () => {
+      console.log("[Dashboard] Cleaning up auth listener...");
       subscription.unsubscribe();
     };
   }, [isInitialized]);
@@ -172,17 +271,46 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   }, []);
 
   // Transactions
-  const addTransaction = useCallback((transaction: Transaction) => {
-    setState((prev) => {
-      const newTransactions = [transaction, ...prev.transactions];
-      const newSummary = calculateSummary(newTransactions, prev.budgetCategories);
-      return {
-        ...prev,
-        transactions: newTransactions,
-        summary: newSummary,
-        lastUpdated: new Date(),
-      };
-    });
+  const addTransaction = useCallback(async (transaction: Transaction) => {
+    // First save to Supabase
+    try {
+      const result = await createTransactionService({
+        type: transaction.type,
+        category: transaction.category,
+        account: "Cash", // Default account
+        amount: transaction.amount,
+        date: transaction.date,
+        merchant: transaction.merchant,
+        status: transaction.status,
+      });
+
+      if (result.success && result.data) {
+        const dbTransaction = result.data as any;
+        setState((prev) => {
+          const newTransaction: Transaction = {
+            id: dbTransaction.id,
+            merchant: dbTransaction.merchant || transaction.merchant,
+            amount: dbTransaction.amount,
+            category: dbTransaction.category as TransactionCategory,
+            date: dbTransaction.date,
+            status: (dbTransaction.status as "pending" | "completed" | "failed") || "completed",
+            type: dbTransaction.type as "income" | "expense",
+            isAutoCategorized: !!dbTransaction.ai_category,
+            paylabsId: dbTransaction.paylabs_transaction_id || undefined,
+          };
+          const newTransactions = [newTransaction, ...prev.transactions];
+          const newSummary = calculateSummary(newTransactions, prev.budgetCategories);
+          return {
+            ...prev,
+            transactions: newTransactions,
+            summary: newSummary,
+            lastUpdated: new Date(),
+          };
+        });
+      }
+    } catch (error) {
+      console.error("[Dashboard] Add transaction error:", error);
+    }
   }, []);
 
   const removeTransaction = useCallback((id: string) => {
@@ -254,29 +382,46 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     }));
   }, []);
 
-  const addGoalProgress = useCallback((id: string, amount: number) => {
-    setState((prev) => ({
-      ...prev,
-      goals: prev.goals.map((g) =>
-        g.id === id ? { ...g, currentAmount: Math.min(g.currentAmount + amount, g.targetAmount) } : g
-      ),
-      lastUpdated: new Date(),
-    }));
+  const addGoalProgress = useCallback(async (id: string, amount: number) => {
+    // Update in Supabase
+    const result = await addGoalProgressService(id, amount);
+
+    if (result.success && result.data) {
+      setState((prev) => ({
+        ...prev,
+        goals: prev.goals.map((g) =>
+          g.id === id ? { ...g, currentAmount: parseFloat(result.data!.current_amount.toString()) } : g
+        ),
+        lastUpdated: new Date(),
+      }));
+    }
   }, []);
 
   // Insights
-  const addInsight = useCallback((insight: Omit<SmartInsight, "id" | "timestamp" | "isRead">) => {
-    const newInsight: SmartInsight = {
-      ...insight,
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: new Date().toISOString(),
-      isRead: false,
-    };
-    setState((prev) => ({
-      ...prev,
-      insights: [newInsight, ...prev.insights],
-      lastUpdated: new Date(),
-    }));
+  const addInsight = useCallback(async (insight: Omit<SmartInsight, "id" | "timestamp" | "isRead">) => {
+    // Save to Supabase
+    const result = await createBudgetInsightService({
+      title: insight.title,
+      content: insight.content,
+      type: insight.type,
+    });
+
+    if (result.success && result.data) {
+      const dbInsight = result.data;
+      const newInsight: SmartInsight = {
+        id: dbInsight.id,
+        title: dbInsight.title,
+        content: dbInsight.content,
+        type: dbInsight.type as "advice" | "alert" | "opportunity" | "achievement",
+        timestamp: dbInsight.created_at,
+        isRead: dbInsight.is_read ?? false,
+      };
+      setState((prev) => ({
+        ...prev,
+        insights: [newInsight, ...prev.insights],
+        lastUpdated: new Date(),
+      }));
+    }
   }, []);
 
   const markInsightRead = useCallback((id: string) => {
@@ -289,18 +434,32 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
   // Notifications
   const addNotification = useCallback(
-    (notification: Omit<NotificationCard, "id" | "timestamp" | "isRead">) => {
-      const newNotification: NotificationCard = {
-        ...notification,
-        id: Math.random().toString(36).substring(2, 9),
-        timestamp: new Date().toISOString(),
-        isRead: false,
-      };
-      setState((prev) => ({
-        ...prev,
-        notifications: [newNotification, ...prev.notifications],
-        lastUpdated: new Date(),
-      }));
+    async (notification: Omit<NotificationCard, "id" | "timestamp" | "isRead">) => {
+      // Save to Supabase
+      const result = await createNotificationService({
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        action_url: notification.actionUrl,
+        metadata: notification.metadata,
+      });
+
+      if (result.success && result.data) {
+        const dbNotification = result.data;
+        const newNotification: NotificationCard = {
+          id: dbNotification.id,
+          type: dbNotification.type as "success" | "warning" | "error" | "info",
+          title: dbNotification.title,
+          message: dbNotification.message,
+          timestamp: dbNotification.created_at,
+          isRead: dbNotification.is_read ?? false,
+        };
+        setState((prev) => ({
+          ...prev,
+          notifications: [newNotification, ...prev.notifications],
+          lastUpdated: new Date(),
+        }));
+      }
     },
     []
   );
@@ -322,23 +481,37 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   }, []);
 
   // Smart Budgeting
-  const addIncomeSource = useCallback((source: Omit<IncomeSourceDetail, "id">) => {
-    const newSource: IncomeSourceDetail = {
-      ...source,
-      id: Math.random().toString(36).substring(2, 9),
-    };
-    setState((prev) => {
-      const newSources = [...prev.incomeSources, newSource];
-      const totalIncome = calculateTotalIncome(newSources);
-      return {
-        ...prev,
-        incomeSources: newSources,
-        allocationStatus: prev.allocationStatus
-          ? { ...prev.allocationStatus, totalIncome }
-          : null,
-        lastUpdated: new Date(),
-      };
+  const addIncomeSource = useCallback(async (source: Omit<IncomeSourceDetail, "id">) => {
+    // Save to Supabase
+    const result = await createIncomeSourceService({
+      name: source.name,
+      amount: source.amount,
+      frequency: source.frequency,
+      type: source.type,
     });
+
+    if (result.success && result.data) {
+      const dbSource = result.data;
+      setState((prev) => {
+        const newSource: IncomeSourceDetail = {
+          id: dbSource.id,
+          name: dbSource.name,
+          amount: parseFloat(dbSource.amount.toString()),
+          frequency: dbSource.frequency as "weekly" | "biweekly" | "monthly" | "yearly",
+          type: dbSource.type as "salary" | "freelance" | "investment" | "side-hustle" | "other",
+        };
+        const newSources = [...prev.incomeSources, newSource];
+        const totalIncome = calculateTotalIncome(newSources);
+        return {
+          ...prev,
+          incomeSources: newSources,
+          allocationStatus: prev.allocationStatus
+            ? { ...prev.allocationStatus, totalIncome }
+            : null,
+          lastUpdated: new Date(),
+        };
+      });
+    }
   }, []);
 
   const updateIncomeSource = useCallback((id: string, updates: Partial<IncomeSourceDetail>) => {
@@ -373,22 +546,42 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     });
   }, []);
 
-  const setCategoryAllocation = useCallback((allocation: Omit<CategoryAllocation, "id">) => {
-    const newAllocation: CategoryAllocation = {
-      ...allocation,
-      id: Math.random().toString(36).substring(2, 9),
-    };
-    setState((prev) => {
-      const newAllocations = [...prev.categoryAllocations, newAllocation];
-      const totalAllocated = newAllocations.reduce((sum, a) => sum + a.allocatedAmount, 0);
-      const totalIncome = prev.allocationStatus?.totalIncome || 0;
-      return {
-        ...prev,
-        categoryAllocations: newAllocations,
-        allocationStatus: calculateAllocationStatus(totalIncome, totalAllocated),
-        lastUpdated: new Date(),
-      };
+  const setCategoryAllocation = useCallback(async (allocation: Omit<CategoryAllocation, "id">) => {
+    // Save to Supabase
+    const result = await createCategoryAllocationService({
+      name: allocation.name,
+      category: allocation.category,
+      allocated_amount: allocation.allocatedAmount,
+      spent_amount: allocation.spentAmount,
+      is_essential: allocation.isEssential,
+      impact_indicator: allocation.impactIndicator,
+      color: allocation.color,
     });
+
+    if (result.success && result.data) {
+      const dbAllocation = result.data;
+      setState((prev) => {
+        const newAllocation: CategoryAllocation = {
+          id: dbAllocation.id,
+          name: dbAllocation.name,
+          category: dbAllocation.category as TransactionCategory,
+          allocatedAmount: parseFloat(dbAllocation.allocated_amount.toString()),
+          spentAmount: parseFloat(dbAllocation.spent_amount.toString()),
+          isEssential: dbAllocation.is_essential ?? false,
+          impactIndicator: (dbAllocation.impact_indicator as "high" | "medium" | "low") || "medium",
+          color: dbAllocation.color || "#6B7280",
+        };
+        const newAllocations = [...prev.categoryAllocations, newAllocation];
+        const totalAllocated = newAllocations.reduce((sum, a) => sum + a.allocatedAmount, 0);
+        const totalIncome = prev.allocationStatus?.totalIncome || 0;
+        return {
+          ...prev,
+          categoryAllocations: newAllocations,
+          allocationStatus: calculateAllocationStatus(totalIncome, totalAllocated),
+          lastUpdated: new Date(),
+        };
+      });
+    }
   }, []);
 
   const updateCategoryAllocation = useCallback((id: string, updates: Partial<CategoryAllocation>) => {
@@ -443,7 +636,7 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   const refreshData = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
-      const data = await fetchDashboardData();
+      const data = await fetchAllDashboardData();
       setState((prev) => ({
         ...prev,
         transactions: transformTransactions(data.transactions),

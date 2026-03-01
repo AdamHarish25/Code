@@ -29,6 +29,7 @@ import { GoalsView } from "./views/GoalsView";
 import { InsightsView } from "./views/InsightsView";
 import { SmartBudgetingView } from "./views/SmartBudgetingView";
 import { AnalyticsView } from "./views/AnalyticsView";
+import { UserProfile } from "./UserProfile";
 
 const navItems: { id: DashboardView; label: string; icon: React.ReactNode }[] = [
   { id: "home", label: "Home", icon: <Home className="w-5 h-5" /> },
@@ -108,6 +109,9 @@ export function DashboardLayout() {
                 </motion.span>
               )}
             </motion.button>
+
+            {/* User Profile */}
+            <UserProfile />
 
             {/* Mobile Menu Toggle */}
             <button

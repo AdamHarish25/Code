@@ -70,11 +70,16 @@ export async function saveOnboardingData(
       const goalsToInsert = data.goals.map((goal) => ({
         user_id: userId,
         name: goal.name,
-        target_amount: goal.targetAmount,
+        description: "",
+        target_amount: parseFloat(goal.targetAmount.toString()),
+        current_amount: 0,
         target_date: goal.targetDate || null,
         priority: goal.priority,
+        icon: null,
+        is_completed: false,
       }));
 
+      console.log("[Onboarding] Goals to insert:", goalsToInsert);
       operations.push(
         (supabase as any).from("financial_goals").insert(goalsToInsert)
       );
@@ -82,15 +87,24 @@ export async function saveOnboardingData(
 
     // 4. Insert income sources
     if (data.incomeSources && data.incomeSources.length > 0) {
-      const incomeToInsert = data.incomeSources.map((source) => ({
-        user_id: userId,
-        name: source.type === "salary" ? "Salary" : source.type === "freelancing" ? "Freelance" : source.type,
-        amount: source.amount,
-        frequency: source.frequency,
-        type: source.type === "freelancing" ? "freelance" : source.type,
-        is_active: true,
-      }));
+      const incomeToInsert = data.incomeSources.map((source) => {
+        // Map onboarding type to database type
+        let dbType: "salary" | "freelance" | "investment" | "side-hustle" | "other" = "other";
+        if (source.type === "salary") dbType = "salary";
+        else if (source.type === "freelancing") dbType = "freelance";
+        else dbType = "side-hustle";
 
+        return {
+          user_id: userId,
+          name: source.type === "salary" ? "Salary" : (source.type === "freelancing" ? "Freelance" : "Other Income"),
+          amount: source.amount,
+          frequency: source.frequency,
+          type: dbType,
+          is_active: true,
+        };
+      });
+
+      console.log("[Onboarding] Income to insert:", incomeToInsert);
       operations.push(
         (supabase as any).from("income_sources").insert(incomeToInsert)
       );
@@ -102,31 +116,41 @@ export async function saveOnboardingData(
         user_id: userId,
         name: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
         category: expense.category,
-        allocated_amount: expense.amount,
+        allocated_amount: parseFloat(expense.amount.toString()),
         spent_amount: 0,
         is_essential: expense.isEssential,
-        impact_indicator: "high" as const,
+        impact_indicator: "high",
         color: "#6B7280",
       }));
 
+      console.log("[Onboarding] Expenses to insert:", expensesToInsert);
       operations.push(
         (supabase as any).from("category_allocations").insert(expensesToInsert)
       );
     }
 
     // Execute all operations
+    console.log("[Onboarding] Saving data for user:", userId);
+    console.log("[Onboarding] Data:", {
+      investmentPath: data.investmentPath,
+      goalsCount: data.goals?.length || 0,
+      incomeCount: data.incomeSources?.length || 0,
+      expensesCount: data.expenses?.length || 0,
+    });
+
     const results = await Promise.all(operations);
 
     // Check for errors
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if ("error" in result && result.error) {
-        console.error(`[Onboarding] Operation ${i} failed:`, result.error);
+        console.error("[Onboarding] Operation", i, "failed:", result.error);
         return {
           success: false,
           error: `Failed to save data: ${result.error.message}`,
         };
       }
+      console.log("[Onboarding] Operation", i, "success");
     }
 
     console.log(`[Onboarding] Data saved successfully for user ${userId}`);

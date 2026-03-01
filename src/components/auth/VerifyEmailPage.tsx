@@ -9,19 +9,41 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, CheckCircle, AlertCircle, RefreshCw, ArrowLeft, Inbox } from "lucide-react";
+import { Mail, CheckCircle, AlertCircle, RefreshCw, ArrowLeft, Inbox, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useOnboarding } from "@/lib/onboarding-store";
+import { saveOnboardingData } from "@/actions/onboarding-db";
 
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const { data: onboardingData, userId, setUserId } = useOnboarding();
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
+
+  // Load onboarding data from sessionStorage if not in context
+  const getOnboardingData = () => {
+    // Try context first
+    if (onboardingData.investmentPath) {
+      return onboardingData;
+    }
+    // Fallback to sessionStorage
+    try {
+      const stored = sessionStorage.getItem('onboardingData');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("[VerifyEmail] Failed to parse sessionStorage:", e);
+    }
+    return null;
+  };
 
   // Poll for verification status
   useEffect(() => {
@@ -29,45 +51,76 @@ function VerifyEmailContent() {
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
 
-        if (user && user.email_confirmed_at) {
+        if (user) {
+          // Email verification disabled - proceed immediately for all users
           setIsVerified(true);
-          // Check if user has completed onboarding (check both metadata and profiles)
-          const onboardingCompleted = user.user_metadata?.onboarding_completed;
           
-          // Double-check with profiles table
-          let profileComplete = false;
-          if (!onboardingCompleted) {
-            const { data: profile } = await (supabase as any)
-              .from("profiles")
-              .select("investment_path")
-              .eq("id", user.id)
-              .single();
-            profileComplete = !!((profile as any)?.investment_path);
-          }
+          // Get user ID from context or user object
+          const currentUserId = userId || user.id;
           
-          // Redirect based on onboarding status
-          setTimeout(() => {
-            if (onboardingCompleted || profileComplete) {
-              router.push("/dashboard");
-            } else {
-              // User verified email during onboarding - complete the flow
-              router.push("/onboarding/complete");
+          // Get onboarding data
+          const onboardingToSave = getOnboardingData();
+          
+          // Check if onboarding already saved
+          const alreadySaved = user.user_metadata?.onboarding_completed;
+          
+          // Save onboarding data (if not already saved)
+          if (onboardingToSave?.investmentPath && currentUserId && !alreadySaved) {
+            setIsSaving(true);
+            try {
+              const result = await saveOnboardingData(currentUserId, {
+                ...onboardingToSave,
+                completedAt: new Date().toISOString(),
+              });
+              
+              if (result.success) {
+                // Update user metadata
+                await supabase.auth.updateUser({
+                  data: { onboarding_completed: true },
+                });
+                
+                // Clear sessionStorage
+                sessionStorage.removeItem('onboardingData');
+                
+                // Redirect to dashboard
+                setTimeout(() => {
+                  router.push("/dashboard");
+                }, 1500);
+              } else {
+                setError("Failed to save onboarding data");
+              }
+            } catch (saveError) {
+              console.error("[VerifyEmail] Save error:", saveError);
+              setError("Failed to save data, redirecting anyway...");
+              setTimeout(() => router.push("/dashboard"), 2000);
+            } finally {
+              setIsSaving(false);
             }
-          }, 1500);
+          } else if (alreadySaved) {
+            // Already saved, just redirect to dashboard
+            setTimeout(() => {
+              router.push("/dashboard");
+            }, 1000);
+          } else if (!onboardingToSave?.investmentPath) {
+            // No onboarding data, redirect to dashboard or onboarding
+            setTimeout(() => {
+              router.push("/dashboard");
+            }, 1000);
+          }
         }
       } catch (err) {
-        // User not yet verified, continue polling
+        console.error("[VerifyEmail] Check error:", err);
       }
     };
 
     // Check immediately
     checkVerification();
 
-    // Poll every 3 seconds
-    const interval = setInterval(checkVerification, 3000);
+    // No polling needed - just save once
+    const interval = setInterval(checkVerification, 1000);
 
     return () => clearInterval(interval);
-  }, [router]);
+  }, [router, userId]);
 
   // Countdown timer for resend
   useEffect(() => {
@@ -162,14 +215,13 @@ function VerifyEmailContent() {
                 {/* Instructions */}
                 <div className="mb-8 p-4 rounded-xl bg-background border border-border">
                   <div className="flex items-start gap-3">
-                    <Mail className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-muted">
                       <p className="font-medium text-foreground mb-1">
-                        Check your inbox
+                        Account Created Successfully!
                       </p>
                       <p>
-                        Click the confirmation link in the email we just sent you.
-                        This will verify your account and activate all features.
+                        Please wait while we save your onboarding data and redirect you to the dashboard.
                       </p>
                     </div>
                   </div>
@@ -244,21 +296,40 @@ function VerifyEmailContent() {
                 exit={{ opacity: 0 }}
                 className="text-center py-8"
               >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", delay: 0.2 }}
-                  className="w-20 h-20 rounded-full bg-success-dim flex items-center justify-center mx-auto mb-6"
-                >
-                  <CheckCircle className="w-10 h-10 text-success" />
-                </motion.div>
-                <h1 className="text-2xl font-bold mb-2">Email Verified!</h1>
-                <p className="text-muted mb-4">
-                  Your account has been successfully verified.
-                </p>
-                <p className="text-sm text-muted">
-                  Redirecting to dashboard...
-                </p>
+                {isSaving ? (
+                  <>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", delay: 0.2 }}
+                      className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6"
+                    >
+                      <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    </motion.div>
+                    <h1 className="text-2xl font-bold mb-2">Saving Your Data...</h1>
+                    <p className="text-muted mb-4">
+                      Please wait while we save your onboarding information.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", delay: 0.2 }}
+                      className="w-20 h-20 rounded-full bg-success-dim flex items-center justify-center mx-auto mb-6"
+                    >
+                      <CheckCircle className="w-10 h-10 text-success" />
+                    </motion.div>
+                    <h1 className="text-2xl font-bold mb-2">Email Verified!</h1>
+                    <p className="text-muted mb-4">
+                      Your account has been successfully verified.
+                    </p>
+                    <p className="text-sm text-muted">
+                      Redirecting to dashboard...
+                    </p>
+                  </>
+                )}
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}

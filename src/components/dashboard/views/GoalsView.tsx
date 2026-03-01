@@ -11,6 +11,7 @@ import { Target, Plus, TrendingUp, Calendar, DollarSign } from "lucide-react";
 import { useDashboard } from "@/lib/dashboard-store";
 import { FinancialGoal } from "@/types/dashboard";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { createFinancialGoal as createFinancialGoalService } from "@/lib/supabase-services";
 
 const priorityColors = {
   low: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -21,7 +22,7 @@ const priorityColors = {
 const goalIcons = ["🏠", "🚗", "✈️", "💰", "🎓", "💍", "🏖️", "💻"];
 
 export function GoalsView() {
-  const { goals, addGoalProgress } = useDashboard();
+  const { goals, addGoalProgress, refreshData } = useDashboard();
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoal, setNewGoal] = useState<Omit<FinancialGoal, "id">>({
     name: "",
@@ -29,47 +30,35 @@ export function GoalsView() {
     currentAmount: 0,
     priority: "medium",
   });
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Sample goals for demo
-  const sampleGoals: FinancialGoal[] = [
-    {
-      id: "1",
-      name: "Emergency Fund",
-      targetAmount: 10000,
-      currentAmount: 6500,
-      priority: "high",
-      targetDate: "2025-12-31",
-    },
-    {
-      id: "2",
-      name: "Vacation to Japan",
-      targetAmount: 5000,
-      currentAmount: 2300,
-      priority: "medium",
-      targetDate: "2025-06-15",
-    },
-    {
-      id: "3",
-      name: "New Laptop",
-      targetAmount: 2000,
-      currentAmount: 1200,
-      priority: "low",
-      targetDate: "2025-03-01",
-    },
-  ];
+  const handleAddGoal = async () => {
+    if (!newGoal.name || newGoal.targetAmount <= 0) return;
 
-  const displayGoals = goals.length > 0 ? goals : sampleGoals;
+    setIsCreating(true);
+    try {
+      const result = await createFinancialGoalService({
+        name: newGoal.name,
+        target_amount: newGoal.targetAmount,
+        current_amount: newGoal.currentAmount,
+        priority: newGoal.priority,
+        target_date: undefined,
+      });
 
-  const handleAddGoal = () => {
-    if (newGoal.name && newGoal.targetAmount > 0) {
-      // In real app, would call addGoal from context
-      setShowAddGoal(false);
-      setNewGoal({ name: "", targetAmount: 0, currentAmount: 0, priority: "medium" });
+      if (result.success) {
+        await refreshData();
+        setShowAddGoal(false);
+        setNewGoal({ name: "", targetAmount: 0, currentAmount: 0, priority: "medium" });
+      }
+    } catch (error) {
+      console.error("Failed to create goal:", error);
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const handleAddProgress = (id: string, amount: number) => {
-    addGoalProgress(id, amount);
+  const handleAddProgress = async (id: string, amount: number) => {
+    await addGoalProgress(id, amount);
   };
 
   return (
@@ -148,7 +137,7 @@ export function GoalsView() {
 
       {/* Goals Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {displayGoals.map((goal, index) => {
+        {goals.map((goal, index) => {
           const progress = (goal.currentAmount / goal.targetAmount) * 100;
           const icon = goalIcons[index % goalIcons.length];
 
@@ -236,7 +225,7 @@ export function GoalsView() {
       </div>
 
       {/* Empty State */}
-      {displayGoals.length === 0 && (
+      {goals.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

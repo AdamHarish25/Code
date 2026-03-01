@@ -48,29 +48,30 @@ export function AnalyticsView() {
       setIsLoading(true);
 
       try {
-        // Use placeholder user ID (replace with actual auth)
-        const userId = "current-user-id";
-
-        // Load all analytics data in parallel
+        // Load all analytics data in parallel (no userId needed - uses auth)
         const [summaryData, trendData, breakdownData, expensesData] = await Promise.all([
-          getExpensesSummary(userId),
-          getIncomeExpensesTrend(userId),
-          getCategoryBreakdown(userId),
-          getExpensesByAccount(userId),
+          getExpensesSummary(),
+          getIncomeExpensesTrend(),
+          getCategoryBreakdown(),
+          getExpensesByAccount(),
         ]);
 
+        console.log("[Analytics] Loaded:", { summary: summaryData, trend: trendData, breakdown: breakdownData });
+        
         setSummary(summaryData);
         setTrend(trendData);
         setBreakdown(breakdownData);
         setExpensesByAccount(expensesData);
 
         // Generate AI insight
-        const insight = await generateAnalyticsInsight(
-          summaryData,
-          trendData,
-          breakdownData
-        );
-        setAiInsight(insight);
+        if (summaryData && trendData && breakdownData) {
+          const insight = await generateAnalyticsInsight(
+            summaryData,
+            trendData,
+            breakdownData
+          );
+          setAiInsight(insight);
+        }
       } catch (error) {
         console.error("[Analytics] Load error:", error);
       } finally {
@@ -87,8 +88,7 @@ export function AnalyticsView() {
     setIsLoading(true);
 
     try {
-      const userId = "current-user-id";
-      const detail = await getCategoryTransactions(userId, category);
+      const detail = await getCategoryTransactions(category);
       setCategoryDetail(detail);
     } catch (error) {
       console.error("[Analytics] Load category detail error:", error);

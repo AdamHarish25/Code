@@ -163,10 +163,190 @@ if (onboardingCompleted || profile?.investment_path) {
 
 ---
 
-### 6. Onboarding Data Sync Fix
+### 8. Email Verification Completely Removed
 
 #### Files Modified:
-- `src/components/onboarding/AuthStep.tsx` - Save data before email verification
+- `src/components/onboarding/AuthStep.tsx` - Save data immediately after signup, no verification redirect
+- `src/app/page.tsx` - Smart routing based on auth/onboarding status
+
+#### Changes:
+
+**COMPLETELY REMOVED EMAIL VERIFICATION!**
+
+**New Flow:**
+```
+1. User completes onboarding forms
+   ↓
+2. User creates account (signup)
+   ↓
+3. Onboarding data SAVED immediately to Supabase ✅
+   ↓
+4. User metadata updated (onboarding_completed: true)
+   ↓
+5. Redirect DIRECTLY to dashboard ✅
+```
+
+**No More:**
+- ❌ Verification page
+- ❌ Email confirmation
+- ❌ Waiting for email
+- ❌ Rate limit issues
+
+**Code Changes:**
+
+```typescript
+// AuthStep.tsx - NEW
+if (mode === "signup") {
+  const result = await signUpWithEmail(email, password);
+  
+  if (result.success && result.user) {
+    const userId = result.user.id;
+    
+    // SAVE ONBOARDING DATA IMMEDIATELY
+    await saveOnboardingData(userId, onboardingData);
+    
+    // Update metadata
+    await supabase.auth.updateUser({
+      data: { onboarding_completed: true },
+    });
+    
+    // REDIRECT DIRECTLY TO DASHBOARD
+    router.push("/dashboard");
+  }
+}
+```
+
+---
+
+## Final User Flow
+
+```
+/ (Home)
+  ↓
+/auth/welcome
+  ↓ (Click "Start Onboarding")
+/onboarding (5 steps)
+  ├─ Step 1: Investment Path
+  ├─ Step 2: Dream Setting
+  ├─ Step 3: Goals
+  ├─ Step 4: Income & Expenses
+  └─ Step 5: Create Account
+      ↓
+    Signup
+      ↓
+    Save Data to Supabase ✅
+      ↓
+    /dashboard (REAL DATA) ✅
+```
+
+---
+
+## What's Saved to Supabase:
+
+| Onboarding Step | Database Table |
+|-----------------|----------------|
+| Investment Path | `profiles.investment_path` |
+| Goals | `financial_goals` |
+| Income Sources | `income_sources` |
+| Expenses | `category_allocations` |
+| User Metadata | `auth.users.user_metadata` |
+
+**All data is REAL, no mock data!** ✅
+
+#### Files Modified:
+- `src/components/auth/VerifyEmailPage.tsx` - Email verification disabled, auto-save onboarding data
+- `src/components/dashboard/TransactionFeed.tsx` - Removed mock transactions
+- `src/lib/dashboard-store.tsx` - Always fetch real data from Supabase
+
+#### Changes:
+
+**1. Email Verification Disabled:**
+```typescript
+// VerifyEmailPage.tsx
+if (user) {
+  // Email verification disabled - proceed immediately for all users
+  setIsVerified(true);
+  
+  // Save onboarding data immediately
+  if (onboardingToSave?.investmentPath && currentUserId && !alreadySaved) {
+    await saveOnboardingData(currentUserId, onboardingToSave);
+    await supabase.auth.updateUser({
+      data: { onboarding_completed: true },
+    });
+    router.push("/dashboard");
+  }
+}
+```
+
+**2. Removed All Mock Data:**
+```typescript
+// TransactionFeed.tsx - REMOVED
+// loadSampleTransactions() - deleted
+// useEffect that loads mock data - deleted
+
+// Dashboard now ONLY shows real Supabase data
+```
+
+**3. Dashboard Always Fetches Real Data:**
+```typescript
+// dashboard-store.tsx
+useEffect(() => {
+  const loadData = async () => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+    
+    const data = await fetchDashboardData(); // Real Supabase data
+    
+    setState((prev) => ({
+      ...prev,
+      transactions: transformTransactions(data.transactions),
+      incomeSources: transformIncomeSources(data.incomeSources),
+      // ... all real data
+      isLoading: false,
+    }));
+  };
+  loadData();
+}, []);
+```
+
+---
+
+## Updated User Flow
+
+```
+1. User completes onboarding forms
+   ↓
+2. User creates account (signup)
+   ↓
+3. Redirected to verify-email page
+   ↓
+4. Auto-verifies (email confirmation disabled)
+   ↓
+5. Onboarding data SAVED to Supabase ✅
+   ↓
+6. Redirected to dashboard
+   ↓
+7. Dashboard shows REAL data from Supabase ✅
+```
+
+---
+
+## Data Now Fetched from Supabase:
+
+| Dashboard Component | Data Source |
+|---------------------|-------------|
+| Summary Cards | Real transactions + income sources |
+| Transaction Feed | `transactions` table |
+| Income Sources | `income_sources` table |
+| Budget Categories | `category_allocations` table |
+| Financial Goals | `financial_goals` table |
+| Budget Progress | Real allocation data |
+| AI Insights | `budget_insights` table |
+
+**No more mock data!** All data is real from Supabase. ✅
+
+#### Files Modified:
+- `src/components/onboarding/AuthStep.tsx` - Save data AFTER email verification
+- `src/components/auth/VerifyEmailPage.tsx` - Auto-save onboarding data after verification
 - `src/actions/onboarding-db.ts` - Proper field mapping
 - `src/lib/dashboard-store.tsx` - Fixed transform functions
 
@@ -176,15 +356,48 @@ if (onboardingCompleted || profile?.investment_path) {
 
 #### Solutions:
 
-**1. Save onboarding data before email verification:**
+**Updated Flow: Verify Email First, Then Save Data**
+
+```
+1. User completes onboarding forms
+2. User creates account (signup)
+3. User verifies email ← Email confirmation required
+4. After verification → Data automatically saved ✅
+5. Redirected to dashboard
+```
+
+**Why This is Better:**
+- ✅ Email is confirmed before saving data (no fake emails)
+- ✅ No data loss if user doesn't verify (data saved in context)
+- ✅ Cleaner, more secure flow
+- ✅ User sees "Saving Your Data..." state after verification
+
+**Code Changes:**
+
 ```typescript
-// AuthStep.tsx
+// AuthStep.tsx - Just create account and redirect
 if (mode === "signup") {
   const result = await signUpWithEmail(email, password);
-  if (result.success) {
-    const saved = await completeOnboarding(); // ✅ Save first
-    if (saved) {
-      router.push(`/auth/verify-email?email=${email}`);
+  if (result.success && result.user) {
+    setUserId(result.user.id);
+    router.push(`/auth/verify-email?email=${email}`);
+    return;
+  }
+}
+
+// VerifyEmailPage.tsx - Save data AFTER verification
+if (user && user.email_confirmed_at) {
+  setIsVerified(true);
+  
+  // Save onboarding data after verification
+  if (onboardingData.investmentPath && userId) {
+    setIsSaving(true);
+    const result = await saveOnboardingData(userId, onboardingData);
+    if (result.success) {
+      await supabase.auth.updateUser({
+        data: { onboarding_completed: true },
+      });
+      router.push("/dashboard");
     }
   }
 }

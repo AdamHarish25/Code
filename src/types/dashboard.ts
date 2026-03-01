@@ -135,6 +135,8 @@ export interface NotificationCard {
   message: string;
   timestamp: string;
   isRead: boolean;
+  actionUrl?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export type DashboardView = "home" | "budgeting" | "analytics" | "transactions" | "budget" | "goals" | "insights";

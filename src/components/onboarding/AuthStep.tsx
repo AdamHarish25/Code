@@ -11,6 +11,8 @@ import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle, UserPlus, LogIn } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { signUpWithEmail, signInWithEmail } from "@/lib/auth";
+import { saveOnboardingData } from "@/actions/onboarding-db";
+import { supabase } from "@/lib/supabase";
 
 interface AuthStepProps {
   onComplete: () => void;
@@ -20,7 +22,7 @@ type AuthMode = "signin" | "signup";
 
 export function AuthStep({ onComplete }: AuthStepProps) {
   const router = useRouter();
-  const { data, isSaving, saveError, completeOnboarding } = useOnboarding();
+  const { data, isSaving, saveError, setUserId } = useOnboarding();
 
   const [mode, setMode] = useState<AuthMode>("signup");
   const [email, setEmail] = useState("");
@@ -34,19 +36,60 @@ export function AuthStep({ onComplete }: AuthStepProps) {
     setError("");
     setIsLoading(true);
 
+    console.log("[AuthStep] Submitting with data:", data);
+    console.log("[AuthStep] Data details:", {
+      investmentPath: data.investmentPath,
+      goalsCount: data.goals?.length,
+      incomeCount: data.incomeSources?.length,
+      expensesCount: data.expenses?.length,
+    });
+
     try {
       if (mode === "signup") {
-        // For signup, create account and save onboarding data
+        // For signup, create account and save onboarding data immediately
         const result = await signUpWithEmail(email, password);
 
+        console.log("[AuthStep] Signup result:", result);
+
         if (result.success && result.user) {
-          // Save onboarding data immediately after signup
-          const saved = await completeOnboarding();
-          if (saved) {
-            // Redirect to verification page with email
-            router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
-          } else {
-            setError("Failed to save onboarding data");
+          const userId = result.user.id;
+
+          // Save onboarding data immediately
+          const onboardingDataToSave = {
+            ...data,
+            completedAt: new Date().toISOString(),
+          };
+
+          console.log("[AuthStep] Saving to database:", onboardingDataToSave);
+
+          // Store in sessionStorage as backup
+          sessionStorage.setItem('onboardingData', JSON.stringify(data));
+
+          try {
+            // Save to database
+            const saveResult = await saveOnboardingData(userId, onboardingDataToSave);
+
+            console.log("[AuthStep] Save result:", saveResult);
+
+            if (saveResult.success) {
+              // Update user metadata
+              await supabase.auth.updateUser({
+                data: { onboarding_completed: true },
+              });
+
+              // Clear sessionStorage
+              sessionStorage.removeItem('onboardingData');
+
+              // Redirect directly to dashboard
+              router.push("/dashboard");
+            } else {
+              setError("Failed to save onboarding data: " + saveResult.error);
+            }
+          } catch (saveError) {
+            console.error("[AuthStep] Save error:", saveError);
+            setError("Failed to save data, but account created. Redirecting...");
+            // Still redirect to dashboard even if save fails
+            setTimeout(() => router.push("/dashboard"), 2000);
           }
           return;
         } else {
@@ -64,6 +107,7 @@ export function AuthStep({ onComplete }: AuthStepProps) {
         }
       }
     } catch (err) {
+      console.error("[AuthStep] Error:", err);
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
