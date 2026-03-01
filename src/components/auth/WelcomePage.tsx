@@ -128,12 +128,10 @@ export function WelcomePage() {
               className="group p-8 rounded-3xl bg-surface border-2 border-border hover:border-primary/50 transition-all text-left"
             >
               <div className="flex items-center gap-4 mb-4">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
-                  isHoveringLogin ? "bg-primary" : "bg-primary/10"
-                }`}>
-                  <LogIn className={`w-7 h-7 transition-colors ${
-                    isHoveringLogin ? "text-black" : "text-primary"
-                  }`} />
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${isHoveringLogin ? "bg-primary" : "bg-primary/10"
+                  }`}>
+                  <LogIn className={`w-7 h-7 transition-colors ${isHoveringLogin ? "text-black" : "text-primary"
+                    }`} />
                 </div>
               </div>
               <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
@@ -164,12 +162,10 @@ export function WelcomePage() {
               className="group p-8 rounded-3xl bg-surface border-2 border-border hover:border-primary/50 transition-all text-left"
             >
               <div className="flex items-center gap-4 mb-4">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
-                  isHoveringSignup ? "bg-primary" : "bg-primary/10"
-                }`}>
-                  <UserPlus className={`w-7 h-7 transition-colors ${
-                    isHoveringSignup ? "text-black" : "text-primary"
-                  }`} />
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${isHoveringSignup ? "bg-primary" : "bg-primary/10"
+                  }`}>
+                  <UserPlus className={`w-7 h-7 transition-colors ${isHoveringSignup ? "text-black" : "text-primary"
+                    }`} />
                 </div>
               </div>
               <h2 className="text-2xl font-bold mb-2">New Here?</h2>
@@ -195,7 +191,7 @@ export function WelcomePage() {
             transition={{ delay: 0.8 }}
             className="mt-12 text-center"
           >
-            <p className="text-sm text-muted">
+            {/* <p className="text-sm text-muted">
               By continuing, you agree to our{" "}
               <button className="text-primary hover:text-primary-hover transition-colors">
                 Terms of Service
@@ -204,6 +200,11 @@ export function WelcomePage() {
               <button className="text-primary hover:text-primary-hover transition-colors">
                 Privacy Policy
               </button>
+            </p> */}
+
+            <p>
+              Searching for a github link? We Gotch-U! Checkout our <a className="text-primary hover:text-primary-hover transition-colors" href="https://github.com/AdamHarish25/Code" target="_blank" rel="noopener noreferrer">GitHub</a> for more info.
+
             </p>
           </motion.div>
         </motion.div>
