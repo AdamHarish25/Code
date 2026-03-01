@@ -49,23 +49,43 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 /**
- * Server-side Supabase client
+ * Server-side Supabase client (lazy initialization)
  * Uses service role key (bypasses RLS)
  * ONLY use in server components and server actions
+ * 
+ * Note: This is lazy-loaded to avoid issues with client-side imports
  */
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+let _supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null;
+
+export function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    if (!supabaseServiceKey) {
+      console.warn("SUPABASE_SERVICE_ROLE_KEY is not configured");
+      // Return a client with anon key as fallback (won't bypass RLS)
+      _supabaseAdmin = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+    } else {
+      _supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+    }
+  }
+  return _supabaseAdmin;
+}
 
 /**
  * Get Supabase client based on context
  * @param useAdmin - Use admin client (server-side only)
  */
 export function getSupabaseClient(useAdmin: boolean = false) {
-  return useAdmin ? supabaseAdmin : supabase;
+  return useAdmin ? getSupabaseAdmin() : supabase;
 }
 
 /**

@@ -1,65 +1,72 @@
 /**
  * Duitly - Smart Budgeting App
- * Main entry point with onboarding flow and dashboard
+ * Main entry point - redirects based on auth and onboarding status
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { OnboardingFlow } from "@/components/onboarding";
-import { DashboardLayout } from "@/components/dashboard";
-import { DashboardProvider } from "@/lib/dashboard-store";
-import { useOnboarding } from "@/lib/onboarding-store";
-import { NotificationContainer } from "@/components/dashboard";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-function AppContent() {
-  const { isComplete } = useOnboarding();
-  const [notifications, setNotifications] = useState<Array<{
-    id: string;
-    merchant: string;
-    amount: number;
-  }>>([]);
+export default function Home() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Poll for Paylabs notifications
   useEffect(() => {
-    const pollNotifications = async () => {
+    const checkAuthAndOnboarding = async () => {
       try {
-        const response = await fetch("/api/webhooks/paylabs/notifications");
-        const data = await response.json();
-        if (data.success && data.notifications.length > 0) {
-          setNotifications((prev) => [...prev, ...data.notifications]);
+        // Wait a bit for auth to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // User is authenticated - check onboarding status
+          // Check both user_metadata and profiles table
+          const onboardingCompleted = user.user_metadata?.onboarding_completed;
+          
+          if (onboardingCompleted) {
+            router.push("/dashboard");
+          } else {
+            // Double-check by querying profiles table
+            const { data: profile } = await (supabase as any)
+              .from("profiles")
+              .select("investment_path")
+              .eq("id", user.id)
+              .single();
+            
+            if ((profile as any)?.investment_path) {
+              // User has completed onboarding (profile exists with investment_path)
+              router.push("/dashboard");
+            } else {
+              // User needs to complete onboarding
+              router.push("/onboarding");
+            }
+          }
+        } else {
+          // User not authenticated - redirect to welcome page
+          router.push("/auth/welcome");
         }
       } catch (error) {
-        console.error("Failed to poll notifications:", error);
+        console.error("[Home] Auth check error:", error);
+        // Not authenticated - redirect to welcome
+        router.push("/auth/welcome");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    // Poll every 5 seconds when dashboard is shown
-    if (isComplete) {
-      const interval = setInterval(pollNotifications, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isComplete]);
+    checkAuthAndOnboarding();
+  }, [router]);
 
-  const handleDismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  if (!isComplete) {
-    return <OnboardingFlow />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted">Loading...</div>
+      </div>
+    );
   }
 
-  return (
-    <DashboardProvider>
-      <DashboardLayout />
-      <NotificationContainer
-        notifications={notifications}
-        onDismiss={handleDismissNotification}
-      />
-    </DashboardProvider>
-  );
-}
-
-export default function Home() {
-  return <AppContent />;
+  return null;
 }

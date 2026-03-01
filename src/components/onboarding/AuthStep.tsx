@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle, UserPlus, LogIn } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-store";
@@ -18,8 +19,9 @@ interface AuthStepProps {
 type AuthMode = "signin" | "signup";
 
 export function AuthStep({ onComplete }: AuthStepProps) {
-  const { data, isSaving, saveError } = useOnboarding();
-  
+  const router = useRouter();
+  const { data, isSaving, saveError, completeOnboarding } = useOnboarding();
+
   const [mode, setMode] = useState<AuthMode>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,15 +35,33 @@ export function AuthStep({ onComplete }: AuthStepProps) {
     setIsLoading(true);
 
     try {
-      const result = mode === "signup"
-        ? await signUpWithEmail(email, password)
-        : await signInWithEmail(email, password);
+      if (mode === "signup") {
+        // For signup, create account and save onboarding data
+        const result = await signUpWithEmail(email, password);
 
-      if (result.success && result.user) {
-        // Auth successful - onboarding will save data automatically
-        onComplete();
+        if (result.success && result.user) {
+          // Save onboarding data immediately after signup
+          const saved = await completeOnboarding();
+          if (saved) {
+            // Redirect to verification page with email
+            router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+          } else {
+            setError("Failed to save onboarding data");
+          }
+          return;
+        } else {
+          setError(result.error || "Failed to create account");
+        }
       } else {
-        setError(result.error || "Authentication failed");
+        // For signin, complete onboarding immediately
+        const result = await signInWithEmail(email, password);
+
+        if (result.success && result.user) {
+          // Auth successful - onboarding will save data automatically
+          onComplete();
+        } else {
+          setError(result.error || "Sign in failed");
+        }
       }
     } catch (err) {
       setError("An unexpected error occurred");

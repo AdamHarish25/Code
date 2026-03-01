@@ -5,7 +5,7 @@
 
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { OnboardingData } from "@/types/onboarding";
 
 /**
@@ -23,12 +23,40 @@ export async function saveOnboardingData(
       };
     }
 
+    const supabase = getSupabaseAdmin();
+
+    // First, get the user's email from auth
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+    
+    if (userError || !userData.user) {
+      return {
+        success: false,
+        error: "User not found",
+      };
+    }
+
+    const email = userData.user.email || "";
+
     // Start a transaction-like process
     const operations = [];
 
-    // 1. Update user profile metadata
+    // 1. Create profile if not exists (using upsert with email)
+    if (data.investmentPath) {
+      operations.push(
+        (supabase as any)
+          .from("profiles")
+          .upsert({
+            id: userId,
+            email: email,
+            investment_path: data.investmentPath,
+            updated_at: new Date().toISOString(),
+          })
+      );
+    }
+
+    // 2. Update user metadata
     operations.push(
-      supabaseAdmin.auth.admin.updateUserById(userId, {
+      supabase.auth.admin.updateUserById(userId, {
         user_metadata: {
           onboarding_completed: true,
           investment_path: data.investmentPath,
@@ -36,19 +64,6 @@ export async function saveOnboardingData(
         },
       })
     );
-
-    // 2. Create/update profile in public.profiles
-    if (data.investmentPath) {
-      operations.push(
-        (supabaseAdmin as any)
-          .from("profiles")
-          .upsert({
-            id: userId,
-            investment_path: data.investmentPath,
-            updated_at: new Date().toISOString(),
-          })
-      );
-    }
 
     // 3. Insert goals
     if (data.goals && data.goals.length > 0) {
@@ -61,7 +76,7 @@ export async function saveOnboardingData(
       }));
 
       operations.push(
-        (supabaseAdmin as any).from("financial_goals").insert(goalsToInsert)
+        (supabase as any).from("financial_goals").insert(goalsToInsert)
       );
     }
 
@@ -69,15 +84,15 @@ export async function saveOnboardingData(
     if (data.incomeSources && data.incomeSources.length > 0) {
       const incomeToInsert = data.incomeSources.map((source) => ({
         user_id: userId,
-        name: source.type,
+        name: source.type === "salary" ? "Salary" : source.type === "freelancing" ? "Freelance" : source.type,
         amount: source.amount,
         frequency: source.frequency,
-        type: source.type,
+        type: source.type === "freelancing" ? "freelance" : source.type,
         is_active: true,
       }));
 
       operations.push(
-        (supabaseAdmin as any).from("income_sources").insert(incomeToInsert)
+        (supabase as any).from("income_sources").insert(incomeToInsert)
       );
     }
 
@@ -85,16 +100,17 @@ export async function saveOnboardingData(
     if (data.expenses && data.expenses.length > 0) {
       const expensesToInsert = data.expenses.map((expense) => ({
         user_id: userId,
-        name: expense.category,
+        name: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
         category: expense.category,
         allocated_amount: expense.amount,
-        is_essential: true,
+        spent_amount: 0,
+        is_essential: expense.isEssential,
         impact_indicator: "high" as const,
         color: "#6B7280",
       }));
 
       operations.push(
-        (supabaseAdmin as any).from("category_allocations").insert(expensesToInsert)
+        (supabase as any).from("category_allocations").insert(expensesToInsert)
       );
     }
 
@@ -137,32 +153,34 @@ export async function getOnboardingData(userId: string) {
       return null;
     }
 
+    const supabase = getSupabaseAdmin();
+
     const [profile, goals, income, expenses] = await Promise.all([
-      (supabaseAdmin as any)
+      (supabase as any)
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single(),
-      (supabaseAdmin as any)
+      (supabase as any)
         .from("financial_goals")
         .select("*")
         .eq("user_id", userId),
-      (supabaseAdmin as any)
+      (supabase as any)
         .from("income_sources")
         .select("*")
         .eq("user_id", userId)
         .eq("is_active", true),
-      (supabaseAdmin as any)
+      (supabase as any)
         .from("category_allocations")
         .select("*")
         .eq("user_id", userId),
     ]);
 
     return {
-      investmentPath: profile.data?.investment_path,
-      goals: goals.data || [],
-      incomeSources: income.data || [],
-      expenses: expenses.data || [],
+      investmentPath: (profile as any).data?.investment_path,
+      goals: (goals as any).data || [],
+      incomeSources: (income as any).data || [],
+      expenses: (expenses as any).data || [],
     };
   } catch (error) {
     console.error("[Onboarding] Get data error:", error);
@@ -177,13 +195,22 @@ export async function checkOnboardingComplete(userId: string): Promise<boolean> 
   try {
     if (!userId) return false;
 
-    const { data } = await (supabaseAdmin as any)
+    const supabase = getSupabaseAdmin();
+
+    // Check profiles table for investment_path
+    const { data } = await (supabase as any)
       .from("profiles")
       .select("investment_path")
       .eq("id", userId)
       .single();
 
-    return !!data?.investment_path;
+    if (data?.investment_path) {
+      return true;
+    }
+
+    // Fallback: check user metadata
+    const { data: userData } = await supabase.auth.admin.getUserById(userId);
+    return !!userData.user?.user_metadata?.onboarding_completed;
   } catch (error) {
     console.error("[Onboarding] Check complete error:", error);
     return false;

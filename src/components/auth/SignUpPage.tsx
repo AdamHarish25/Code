@@ -15,7 +15,7 @@ import { useOnboarding } from "@/lib/onboarding-store";
 export function SignUpPage() {
   const router = useRouter();
   const { setUserId } = useOnboarding();
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -44,14 +44,14 @@ export function SignUpPage() {
 
     try {
       const result = await signUpWithEmail(email, password);
-      
+
       if (result.success && result.user) {
         setUserId(result.user.id);
         setSuccess(true);
-        // Redirect to onboarding after short delay
+        // Redirect to email verification page
         setTimeout(() => {
-          router.push("/onboarding");
-        }, 2000);
+          router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+        }, 1500);
       } else {
         setError(result.error || "Failed to create account");
       }
@@ -81,13 +81,13 @@ export function SignUpPage() {
             </motion.div>
             <h1 className="text-2xl font-bold mb-2">Account Created!</h1>
             <p className="text-muted mb-6">
-              Redirecting to onboarding...
+              Please check your email to verify your account.
             </p>
             <div className="w-full h-1 bg-surface-hover rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: "100%" }}
-                transition={{ duration: 2 }}
+                transition={{ duration: 1.5 }}
                 className="h-full bg-success"
               />
             </div>

@@ -3,9 +3,10 @@
 /**
  * Duitly Dashboard Store
  * React Context-based state management for dashboard data
+ * Integrated with Supabase for real-time data
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import {
   Transaction,
   BudgetCategory,
@@ -19,6 +20,8 @@ import {
   CategoryAllocation,
   AllocationStatus,
 } from "@/types/dashboard";
+import { fetchDashboardData, createTransaction, createIncomeSource, createCategoryAllocation, createFinancialGoal } from "@/lib/dashboard-data";
+import { supabase } from "@/lib/supabase";
 
 interface DashboardState {
   currentView: DashboardView;
@@ -109,6 +112,59 @@ interface DashboardProviderProps {
 
 export function DashboardProvider({ children }: DashboardProviderProps) {
   const [state, setState] = useState<DashboardState>(initialState);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load real data from Supabase on mount
+  useEffect(() => {
+    const loadData = async () => {
+      const data = await fetchDashboardData();
+      
+      setState((prev) => ({
+        ...prev,
+        transactions: transformTransactions(data.transactions),
+        incomeSources: transformIncomeSources(data.incomeSources),
+        categoryAllocations: transformAllocations(data.categoryAllocations),
+        goals: transformGoals(data.financialGoals),
+        insights: transformInsights(data.budgetInsights),
+        notifications: transformNotifications(data.notifications),
+        allocationStatus: data.allocationStatus,
+        summary: calculateSummaryFromData(
+          transformTransactions(data.transactions),
+          data.allocationStatus
+        ),
+        lastUpdated: new Date(),
+      }));
+      
+      setIsInitialized(true);
+    };
+
+    loadData();
+  }, []);
+
+  // Subscribe to real-time changes
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        // Reload data when user signs in
+        fetchDashboardData().then((data) => {
+          setState((prev) => ({
+            ...prev,
+            transactions: transformTransactions(data.transactions),
+            incomeSources: transformIncomeSources(data.incomeSources),
+            categoryAllocations: transformAllocations(data.categoryAllocations),
+            goals: transformGoals(data.financialGoals),
+            lastUpdated: new Date(),
+          }));
+        });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isInitialized]);
 
   // Navigation
   const setCurrentView = useCallback((view: DashboardView) => {
@@ -386,13 +442,26 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   // Data refresh
   const refreshData = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true }));
-    // Simulate API call - replace with actual data fetching
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setState((prev) => ({
-      ...prev,
-      isLoading: false,
-      lastUpdated: new Date(),
-    }));
+    try {
+      const data = await fetchDashboardData();
+      setState((prev) => ({
+        ...prev,
+        transactions: transformTransactions(data.transactions),
+        incomeSources: transformIncomeSources(data.incomeSources),
+        categoryAllocations: transformAllocations(data.categoryAllocations),
+        goals: transformGoals(data.financialGoals),
+        allocationStatus: data.allocationStatus,
+        summary: calculateSummaryFromData(
+          transformTransactions(data.transactions),
+          data.allocationStatus
+        ),
+        isLoading: false,
+        lastUpdated: new Date(),
+      }));
+    } catch (error) {
+      console.error("[Dashboard] Refresh error:", error);
+      setState((prev) => ({ ...prev, isLoading: false }));
+    }
   }, []);
 
   return (
@@ -531,5 +600,116 @@ function calculateAllocationStatus(
     allocationPercentage,
     status,
     message,
+  };
+}
+
+// Transform functions - convert database records to app types
+function transformTransactions(dbTransactions: any[]): Transaction[] {
+  return dbTransactions.map((t) => ({
+    id: t.id,
+    merchant: t.merchant || t.category || "Unknown",
+    amount: t.amount,
+    category: (t.category as TransactionCategory) || "other",
+    date: t.date,
+    status: (t.status as "pending" | "completed" | "failed") || "completed",
+    type: (t.type as "income" | "expense") || "expense",
+    isAutoCategorized: !!t.paylabs_transaction_id,
+    paylabsId: t.paylabs_transaction_id,
+  }));
+}
+
+function transformIncomeSources(dbSources: any[]): IncomeSourceDetail[] {
+  return dbSources.map((s) => ({
+    id: s.id,
+    name: s.name || "Income",
+    amount: parseFloat(s.amount) || 0,
+    frequency: (s.frequency as "weekly" | "biweekly" | "monthly" | "yearly") || "monthly",
+    type: (s.type as "salary" | "freelance" | "investment" | "side-hustle" | "other") || "other",
+  }));
+}
+
+function transformAllocations(dbAllocations: any[]): CategoryAllocation[] {
+  return dbAllocations.map((a) => ({
+    id: a.id,
+    name: a.name || a.category || "Category",
+    category: (a.category as TransactionCategory) || "other",
+    allocatedAmount: parseFloat(a.allocated_amount) || 0,
+    spentAmount: parseFloat(a.spent_amount) || 0,
+    isEssential: a.is_essential ?? true,
+    impactIndicator: (a.impact_indicator as "high" | "medium" | "low") || "medium",
+    color: a.color || "#A3FF47",
+  }));
+}
+
+function transformGoals(dbGoals: any[]): FinancialGoal[] {
+  return dbGoals.map((g) => ({
+    id: g.id,
+    name: g.name || "Goal",
+    targetAmount: parseFloat(g.target_amount) || 0,
+    currentAmount: parseFloat(g.current_amount) || 0,
+    targetDate: g.target_date,
+    priority: (g.priority as "low" | "medium" | "high") || "medium",
+    icon: g.icon,
+  }));
+}
+
+function transformInsights(dbInsights: any[]): SmartInsight[] {
+  return dbInsights.map((i) => ({
+    id: i.id,
+    title: i.title || "Budget Insight",
+    content: i.content || i.insight || "",
+    type: (i.type as "advice" | "alert" | "opportunity" | "achievement") || "advice",
+    timestamp: i.created_at || i.timestamp || new Date().toISOString(),
+    isRead: i.is_read || false,
+  }));
+}
+
+function transformNotifications(dbNotifications: any[]): NotificationCard[] {
+  return dbNotifications.map((n) => ({
+    id: n.id,
+    type: (n.type as "success" | "warning" | "error" | "info") || "info",
+    title: n.title || n.merchant || "Notification",
+    message: n.message || n.content || "",
+    timestamp: n.created_at || n.timestamp || new Date().toISOString(),
+    isRead: n.is_read || false,
+  }));
+}
+
+// Calculate summary from real data
+function calculateSummaryFromData(
+  transactions: Transaction[],
+  allocationStatus: AllocationStatus | null
+): DashboardSummary {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const monthlyTransactions = transactions.filter((t) => {
+    const date = new Date(t.date);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  });
+
+  const monthlyIncome = monthlyTransactions
+    .filter((t) => t.type === "income" && t.status === "completed")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyExpenses = monthlyTransactions
+    .filter((t) => t.type === "expense" && t.status === "completed")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlySurplus = monthlyIncome - monthlyExpenses;
+  const savingsRate = monthlyIncome > 0 ? (monthlySurplus / monthlyIncome) * 100 : 0;
+
+  const totalBudget = allocationStatus?.totalAllocated || 0;
+  const totalSpent = allocationStatus ? allocationStatus.totalAllocated - allocationStatus.remainingToAllocate : 0;
+  const budgetProgress = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+  return {
+    totalBalance: monthlySurplus,
+    monthlyIncome,
+    monthlyExpenses,
+    monthlySurplus,
+    budgetProgress,
+    savingsRate: Math.max(0, savingsRate),
   };
 }

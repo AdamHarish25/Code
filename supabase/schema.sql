@@ -656,6 +656,10 @@ CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert own profile"
+  ON public.profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
 -- Income sources policies
 CREATE POLICY "Users can view own income sources"
   ON public.income_sources FOR SELECT

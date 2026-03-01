@@ -6,7 +6,7 @@
 
 "use server";
 
-import { supabaseAdmin, isSupabaseConfigured } from "./supabase";
+import { getSupabaseAdmin, isSupabaseConfigured } from "./supabase";
 import { headers } from "next/headers";
 
 /**
@@ -46,7 +46,7 @@ export async function signUpWithEmail(email: string, password: string) {
       };
     }
 
-    const { data, error } = await supabaseAdmin.auth.signUp({
+    const { data, error } = await getSupabaseAdmin().auth.signUp({
       email,
       password,
       options: {
@@ -99,7 +99,7 @@ export async function signInWithEmail(email: string, password: string) {
       };
     }
 
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    const { data, error } = await getSupabaseAdmin().auth.signInWithPassword({
       email,
       password,
     });
@@ -131,7 +131,7 @@ export async function signInWithEmail(email: string, password: string) {
  */
 export async function signOut() {
   try {
-    const { error } = await supabaseAdmin.auth.signOut();
+    const { error } = await getSupabaseAdmin().auth.signOut();
     
     if (error) {
       console.error("[Auth] Sign out error:", error.message);
@@ -158,7 +158,7 @@ export async function signOut() {
  */
 export async function getCurrentUser() {
   try {
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser();
+    const { data: { user }, error } = await getSupabaseAdmin().auth.getUser();
     
     if (error || !user) {
       return null;
@@ -186,7 +186,7 @@ export async function updateUserProfile(updates: {
   onboarding_completed?: boolean;
 }) {
   try {
-    const { data, error } = await supabaseAdmin.auth.updateUser({
+    const { data, error } = await getSupabaseAdmin().auth.updateUser({
       data: updates,
     });
 
@@ -216,7 +216,7 @@ export async function updateUserProfile(updates: {
  */
 export async function resetPassword(email: string) {
   try {
-    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+    const { error } = await getSupabaseAdmin().auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`,
     });
 
@@ -246,7 +246,7 @@ export async function resetPassword(email: string) {
  */
 export async function verifyOtp(email: string, token: string) {
   try {
-    const { data, error } = await supabaseAdmin.auth.verifyOtp({
+    const { data, error } = await getSupabaseAdmin().auth.verifyOtp({
       email,
       token,
       type: "email",
