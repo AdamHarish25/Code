@@ -204,7 +204,6 @@ export function WelcomePage() {
 
             <p>
               Searching for a github link? We Gotch-U! Checkout our <a className="text-primary hover:text-primary-hover transition-colors" href="https://github.com/AdamHarish25/Code" target="_blank" rel="noopener noreferrer">GitHub</a> for more info.
-
             </p>
           </motion.div>
         </motion.div>

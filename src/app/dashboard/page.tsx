@@ -26,34 +26,34 @@ export default function DashboardPage() {
   useEffect(() => {
     const checkAuth = async () => {
       console.log("[Dashboard Page] Checking authentication...");
-      
+
       try {
         const { data: { session }, error: sessionError } = await getSession();
-        
+
         if (sessionError) {
           console.error("[Dashboard Page] Session check error:", sessionError.message);
         }
-        
+
         console.log("[Dashboard Page] Session result:", {
           hasSession: !!session,
           email: session?.user?.email,
           userId: session?.user?.id,
           onboardingCompleted: session?.user?.user_metadata?.onboarding_completed,
         });
-        
+
         if (session) {
           setIsAuthenticated(true);
           setIsAuthReady(true);
         } else {
-          console.warn("[Dashboard Page] No session found, redirecting to signin");
-          router.push("/auth/signin");
+          console.warn("[Dashboard Page] No session found, redirecting to home");
+          router.push("/");
         }
       } catch (err) {
         console.error("[Dashboard Page] Auth check error:", err);
         setIsAuthReady(true);
       }
     };
-    
+
     checkAuth();
 
     // Listen for auth changes
@@ -62,13 +62,13 @@ export default function DashboardPage() {
         hasUser: !!user,
         email: user?.email,
       });
-      
+
       if (user) {
         setIsAuthenticated(true);
         setIsAuthReady(true);
       } else {
         setIsAuthenticated(false);
-        router.push("/auth/signin");
+        router.push("/");
       }
     });
   }, [router]);
