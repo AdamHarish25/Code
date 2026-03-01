@@ -1,3 +1,20 @@
+# Signature from Developer
+
+Halo! 👋
+
+Kenalin gw Adam Haris Abd
+
+Gw disini bangun aplikasi ini atas kebutuhan hackathon, dan yang pastinya menggunakan AI untuk kecepatan leverage pembangunan supaya tidak memakan banyak waktu dalam proses pembangunannya.
+
+Aplikasi ini dibangun dengan Next.js 16, Supabase sebagai backend, dan Tailwind CSS untuk styling. Semua fitur utama sudah diimplementasikan, termasuk integrasi Paylabs untuk transaksi dan Qwen AI untuk insights.
+
+Dan Semua yang dibangun ini tidak sepenuhnya dibangun oleh AI (No Code) melainkan ada ulur tangan saya pribadi dalam penanganan menyelesaikan bug yang cukup menantang, dan juga styling bagian yang AI blm bisa menjangkau (ex: Tata letak yang kurang rapih seperti bottom bar dan modal transaksi pada dashboard yang harus di styling ulang untuk tidak saling meniban).
+
+Mungkin cukup dari saya. Sekian Terimakasih!
+
+Adam H.A
+
+
 # Duitly - Complete Documentation
 
 **Version:** 4.0.0 (Production Ready)
