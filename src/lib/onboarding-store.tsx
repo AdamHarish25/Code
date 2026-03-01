@@ -3,6 +3,7 @@
 /**
  * Duitly Onboarding Store
  * React Context-based state management for onboarding flow
+ * Integrated with Supabase authentication and database
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
@@ -14,6 +15,7 @@ import {
   IncomeSource,
   ExpenseCategory,
 } from "@/types/onboarding";
+import { saveOnboardingData } from "@/actions/onboarding-db";
 
 const initialOnboardingData: OnboardingData = {
   welcomed: false,
@@ -25,16 +27,22 @@ const initialOnboardingData: OnboardingData = {
 };
 
 interface OnboardingContextType {
+  userId: string | null;
   currentStep: OnboardingStep;
   data: OnboardingData;
   totalSteps: number;
   currentStepIndex: number;
-  
+  isSaving: boolean;
+  saveError: string | null;
+
+  // Auth
+  setUserId: (id: string | null) => void;
+
   // Navigation
   nextStep: () => void;
   previousStep: () => void;
   goToStep: (step: OnboardingStep) => void;
-  
+
   // Data mutations
   setWelcomed: (welcomed: boolean) => void;
   setInvestmentPath: (path: InvestmentPath) => void;
@@ -48,8 +56,8 @@ interface OnboardingContextType {
   addExpense: (expense: ExpenseCategory) => void;
   updateExpense: (index: number, updates: Partial<ExpenseCategory>) => void;
   removeExpense: (index: number) => void;
-  completeOnboarding: () => void;
-  
+  completeOnboarding: () => Promise<boolean>;
+
   // Validation
   canProceed: boolean;
   isComplete: boolean;
@@ -64,8 +72,11 @@ interface OnboardingProviderProps {
 }
 
 export function OnboardingProvider({ children }: OnboardingProviderProps) {
+  const [userId, setUserId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
   const [data, setData] = useState<OnboardingData>(initialOnboardingData);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const currentStepIndex = stepOrder.indexOf(currentStep);
   const totalSteps = stepOrder.length - 1; // Exclude "complete"
@@ -163,13 +174,40 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     }));
   }, []);
 
-  const completeOnboarding = useCallback(() => {
-    setData((prev) => ({
-      ...prev,
-      completedAt: new Date().toISOString(),
-    }));
-    setCurrentStep("complete");
-  }, []);
+  const completeOnboarding = useCallback(async (): Promise<boolean> => {
+    if (!userId) {
+      setSaveError("User not authenticated");
+      return false;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const result = await saveOnboardingData(userId, {
+        ...data,
+        completedAt: new Date().toISOString(),
+      });
+
+      if (result.success) {
+        setData((prev) => ({
+          ...prev,
+          completedAt: new Date().toISOString(),
+        }));
+        setCurrentStep("complete");
+        return true;
+      } else {
+        setSaveError(result.error || "Failed to save onboarding data");
+        return false;
+      }
+    } catch (error) {
+      console.error("[Onboarding] Complete error:", error);
+      setSaveError("An unexpected error occurred");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [userId, data]);
 
   // Validation logic
   const canProceed = React.useMemo(() => {
@@ -192,10 +230,14 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   return (
     <OnboardingContext.Provider
       value={{
+        userId,
+        setUserId,
         currentStep,
         data,
         totalSteps,
         currentStepIndex,
+        isSaving,
+        saveError,
         nextStep,
         previousStep,
         goToStep,

@@ -1,31 +1,83 @@
 /**
  * Paylabs Webhook Handler
- * Processes real-time transaction webhooks from Paylabs
+ * Handles incoming webhooks from Paylabs with signature verification
+ * 
+ * Payin API v2.1 Webhooks:
+ * - transaction.success
+ * - transaction.failed
+ * - transaction.pending
+ * - transaction.expired
+ * 
+ * Remit API v1.2 Webhooks:
+ * - remit.success
+ * - remit.failed
+ * - remit.processing
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { categorizeTransaction } from "@/actions/insights";
-import { PaylabsWebhookPayload } from "@/types/dashboard";
+import { verifyPaylabsWebhook } from "@/lib/security";
+import { smartCategorize } from "@/lib/qwen-client";
 
-// In-memory store for demo (replace with database/Redis in production)
-const processedWebhooks = new Set<string>();
-const pendingNotifications: Array<{
-  id: string;
-  merchant: string;
+// In-memory store for demo (replace with database in production)
+const processedWebhooks = new Map<string, WebhookEvent>();
+const pendingNotifications: WebhookEvent[] = [];
+
+interface WebhookEvent {
+  eventId: string;
+  eventType: string;
+  merchantId: string;
+  transactionId?: string;
+  remitId?: string;
   amount: number;
-}> = [];
+  currency: string;
+  status: string;
+  timestamp: string;
+  data?: Record<string, unknown>;
+}
 
 /**
  * POST /api/webhooks/paylabs
- * Handles incoming Paylabs webhook events
+ * Handles incoming Paylabs webhook events with signature verification
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const payload = body as PaylabsWebhookPayload;
+    const signature = request.headers.get("x-paylabs-signature");
+    const timestamp = request.headers.get("x-paylabs-timestamp");
+    const nonce = request.headers.get("x-paylabs-nonce");
+    const merchantId = request.headers.get("x-paylabs-merchant-id");
+
+    // Validate required headers
+    if (!signature || !timestamp || !merchantId) {
+      console.warn("[Webhook] Missing required headers");
+      return NextResponse.json(
+        { error: "Missing required headers" },
+        { status: 400 }
+      );
+    }
+
+    // Verify webhook signature
+    const publicKey = process.env.PAYLABS_PUBLIC_KEY;
+    if (publicKey) {
+      const payloadString = JSON.stringify(body);
+      const isValid = verifyPaylabsWebhook({
+        payload: payloadString,
+        signature,
+        publicKey,
+      });
+
+      if (!isValid) {
+        console.error("[Webhook] Invalid signature");
+        return NextResponse.json(
+          { error: "Invalid signature" },
+          { status: 401 }
+        );
+      }
+    }
 
     // Validate payload
-    if (!payload.event || !payload.transaction) {
+    const event = body as WebhookEvent;
+    if (!event.eventId || !event.eventType || !event.merchantId) {
       return NextResponse.json(
         { error: "Invalid payload" },
         { status: 400 }
@@ -33,36 +85,54 @@ export async function POST(request: NextRequest) {
     }
 
     // Prevent duplicate processing
-    const webhookId = payload.transaction.id;
-    if (processedWebhooks.has(webhookId)) {
-      console.log(`Webhook ${webhookId} already processed`);
+    if (processedWebhooks.has(event.eventId)) {
+      console.log(`[Webhook] Event ${event.eventId} already processed`);
       return NextResponse.json({ success: true, duplicate: true });
     }
 
-    processedWebhooks.add(webhookId);
+    processedWebhooks.set(event.eventId, event);
+
+    console.log(`[Webhook] Received ${event.eventType} for merchant ${event.merchantId}`);
 
     // Process based on event type
-    switch (payload.event) {
+    switch (event.eventType) {
       case "transaction.success":
-        await handleSuccessfulTransaction(payload);
+        await handleTransactionSuccess(event);
         break;
       case "transaction.failed":
-        await handleFailedTransaction(payload);
+        await handleTransactionFailed(event);
         break;
       case "transaction.pending":
-        await handlePendingTransaction(payload);
+        await handleTransactionPending(event);
+        break;
+      case "transaction.expired":
+        await handleTransactionExpired(event);
+        break;
+      case "remit.success":
+        await handleRemitSuccess(event);
+        break;
+      case "remit.failed":
+        await handleRemitFailed(event);
         break;
       default:
-        console.log(`Unhandled event type: ${payload.event}`);
+        console.log(`[Webhook] Unhandled event type: ${event.eventType}`);
+    }
+
+    // Add to pending notifications for client polling
+    pendingNotifications.push(event);
+    
+    // Keep only last 20 notifications
+    if (pendingNotifications.length > 20) {
+      pendingNotifications.shift();
     }
 
     return NextResponse.json({
       success: true,
+      eventId: event.eventId,
       processed: true,
-      eventId: webhookId,
     });
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    console.error("[Webhook] Processing error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -71,107 +141,125 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Handle successful transaction
- * Auto-categorizes and triggers notification
+ * GET /api/webhooks/paylabs
+ * Retrieve pending notifications (for client polling)
  */
-async function handleSuccessfulTransaction(payload: PaylabsWebhookPayload) {
-  const { transaction } = payload;
+export async function GET() {
+  const events = [...pendingNotifications];
+  pendingNotifications.length = 0; // Clear after retrieval
 
-  console.log(`Processing successful transaction: ${transaction.merchant} - $${transaction.amount}`);
-
-  // Auto-categorize transaction using AI
-  const categorization = await categorizeTransaction(
-    transaction.merchant,
-    transaction.amount
-  );
-
-  console.log(
-    `Auto-categorized ${transaction.merchant} as ${categorization.category} (confidence: ${categorization.confidence})`
-  );
-
-  // Add to pending notifications for display
-  pendingNotifications.push({
-    id: transaction.id,
-    merchant: transaction.merchant,
-    amount: transaction.amount,
+  return NextResponse.json({
+    success: true,
+    events,
+    count: events.length,
   });
+}
 
-  // In a real app, you would:
-  // 1. Save transaction to database
-  // 2. Update budget calculations
-  // 3. Trigger real-time updates via WebSocket/SSE
-  // 4. Send push notification
+/**
+ * Handle successful transaction
+ * Triggers AI categorization and budget updates
+ */
+async function handleTransactionSuccess(event: WebhookEvent) {
+  console.log(`[Webhook] Transaction success: ${event.transactionId} - $${event.amount}`);
 
-  // Keep only last 10 notifications
-  if (pendingNotifications.length > 10) {
-    pendingNotifications.shift();
+  // Extract merchant from metadata if available
+  const merchant = event.data?.merchant as string | undefined;
+  const category = event.data?.category as string | undefined;
+
+  // AI categorization if merchant provided and no category
+  if (merchant && !category) {
+    try {
+      const aiCategory = await smartCategorize(merchant, event.amount, "expense");
+      console.log(`[Webhook] AI categorized ${merchant} as ${aiCategory.category}`);
+      
+      // In production, update database with AI category
+      event.data = {
+        ...event.data,
+        aiCategory: aiCategory.category,
+        aiConfidence: aiCategory.confidence,
+      };
+    } catch (error) {
+      console.error("[Webhook] AI categorization failed:", error);
+    }
   }
 
-  return {
-    success: true,
-    category: categorization.category,
-    confidence: categorization.confidence,
-  };
+  // In production:
+  // 1. Update transaction status in database
+  // 2. Update budget calculations
+  // 3. Trigger real-time notifications via WebSocket
+  // 4. Send push notification to user
 }
 
 /**
  * Handle failed transaction
  */
-async function handleFailedTransaction(payload: PaylabsWebhookPayload) {
-  const { transaction } = payload;
+async function handleTransactionFailed(event: WebhookEvent) {
+  console.log(`[Webhook] Transaction failed: ${event.transactionId} - $${event.amount}`);
 
-  console.log(`Transaction failed: ${transaction.merchant} - $${transaction.amount}`);
-
-  // In a real app, notify user of failed transaction
-  // and suggest alternative payment methods
-
-  return { success: true, status: "failed" };
+  // In production:
+  // 1. Update transaction status
+  // 2. Notify user of failure
+  // 3. Log for analysis
 }
 
 /**
  * Handle pending transaction
  */
-async function handlePendingTransaction(payload: PaylabsWebhookPayload) {
-  const { transaction } = payload;
+async function handleTransactionPending(event: WebhookEvent) {
+  console.log(`[Webhook] Transaction pending: ${event.transactionId} - $${event.amount}`);
 
-  console.log(`Transaction pending: ${transaction.merchant} - $${transaction.amount}`);
-
-  // In a real app, show pending state in UI
-  // and update when confirmed
-
-  return { success: true, status: "pending" };
+  // In production:
+  // 1. Update transaction status
+  // 2. Show pending state in UI
 }
 
 /**
- * GET /api/webhooks/paylabs/notifications
- * Retrieve pending notifications (for polling)
+ * Handle expired transaction
  */
-export async function GET() {
-  const notifications = [...pendingNotifications];
-  pendingNotifications.length = 0; // Clear after retrieval
+async function handleTransactionExpired(event: WebhookEvent) {
+  console.log(`[Webhook] Transaction expired: ${event.transactionId}`);
 
-  return NextResponse.json({
-    success: true,
-    notifications,
-    count: notifications.length,
+  // In production:
+  // 1. Update transaction status
+  // 2. Notify user
+}
+
+/**
+ * Handle successful remit (payout)
+ */
+async function handleRemitSuccess(event: WebhookEvent) {
+  console.log(`[Webhook] Remit success: ${event.remitId} - $${event.amount}`);
+
+  // In production:
+  // 1. Update remit status
+  // 2. Deduct from user balance
+  // 3. Notify user
+}
+
+/**
+ * Handle failed remit
+ */
+async function handleRemitFailed(event: WebhookEvent) {
+  console.log(`[Webhook] Remit failed: ${event.remitId} - $${event.amount}`);
+
+  // In production:
+  // 1. Update remit status
+  // 2. Refund to user balance
+  // 3. Notify user with reason
+}
+
+/**
+ * Webhook Signature Verification Helper
+ * Verifies Paylabs webhook signatures using RSA public key
+ */
+function verifyWebhookSignature(
+  payload: string,
+  signature: string,
+  publicKey: string
+): boolean {
+  return verifyPaylabsWebhook({
+    payload,
+    signature,
+    publicKey,
   });
-}
-
-/**
- * Webhook Signature Verification
- * In production, verify Paylabs webhook signatures
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function verifyWebhookSignature(request: NextRequest): boolean {
-  const signature = request.headers.get("x-paylabs-signature");
-  const timestamp = request.headers.get("x-paylabs-timestamp");
-
-  if (!signature || !timestamp) {
-    return false;
-  }
-
-  // Implement signature verification logic here
-  // Compare with expected signature using your webhook secret
-
-  return true; // Placeholder - implement in production
 }

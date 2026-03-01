@@ -16,6 +16,8 @@ import {
   Bell,
   Menu,
   X,
+  Wallet,
+  BarChart3,
 } from "lucide-react";
 import Image from "next/image";
 import { useDashboard } from "@/lib/dashboard-store";
@@ -25,9 +27,13 @@ import { TransactionsView } from "./views/TransactionsView";
 import { BudgetView } from "./views/BudgetView";
 import { GoalsView } from "./views/GoalsView";
 import { InsightsView } from "./views/InsightsView";
+import { SmartBudgetingView } from "./views/SmartBudgetingView";
+import { AnalyticsView } from "./views/AnalyticsView";
 
 const navItems: { id: DashboardView; label: string; icon: React.ReactNode }[] = [
   { id: "home", label: "Home", icon: <Home className="w-5 h-5" /> },
+  { id: "budgeting", label: "Budgeting", icon: <Wallet className="w-5 h-5" /> },
+  { id: "analytics", label: "Analytics", icon: <BarChart3 className="w-5 h-5" /> },
   { id: "transactions", label: "Transactions", icon: <CreditCard className="w-5 h-5" /> },
   { id: "budget", label: "Budget", icon: <PieChart className="w-5 h-5" /> },
   { id: "goals", label: "Goals", icon: <Target className="w-5 h-5" /> },
@@ -49,6 +55,10 @@ export function DashboardLayout() {
     switch (currentView) {
       case "home":
         return <HomeView />;
+      case "budgeting":
+        return <SmartBudgetingView />;
+      case "analytics":
+        return <AnalyticsView />;
       case "transactions":
         return <TransactionsView />;
       case "budget":

@@ -5,6 +5,7 @@
  * Main dashboard home with financial overview and insights
  */
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Wallet,
@@ -12,15 +13,18 @@ import {
   TrendingDown,
   PiggyBank,
   ArrowUpRight,
+  Plus,
 } from "lucide-react";
 import { useDashboard } from "@/lib/dashboard-store";
 import { SmartInsightCard } from "../SmartInsightCard";
 import { TransactionFeed } from "../TransactionFeed";
 import { BudgetProgress } from "../BudgetProgress";
+import { AddTransactionModal } from "../AddTransactionModal";
 import { formatCurrency } from "@/lib/utils";
 
 export function HomeView() {
   const { summary } = useDashboard();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -138,6 +142,27 @@ export function HomeView() {
       <motion.div variants={itemVariants}>
         <TransactionFeed limit={5} />
       </motion.div>
+
+      {/* Floating Action Button - Add Transaction */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsModalOpen(true)}
+        className="fixed bottom-20 right-4 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 rounded-full bg-primary text-black shadow-lg shadow-primary/30 flex items-center justify-center z-40"
+      >
+        <Plus className="w-6 h-6 md:w-8 md:h-8" />
+      </motion.button>
+
+      {/* Add Transaction Modal */}
+      <AddTransactionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={(transactionId) => {
+          console.log("Transaction created:", transactionId);
+        }}
+      />
     </motion.div>
   );
 }

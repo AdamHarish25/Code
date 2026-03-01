@@ -15,6 +15,50 @@ export interface Transaction {
   paylabsId?: string;
 }
 
+// Smart Budgeting Types
+export interface IncomeSourceDetail {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: "weekly" | "biweekly" | "monthly" | "yearly";
+  type: "salary" | "freelance" | "investment" | "side-hustle" | "other";
+}
+
+export interface CategoryAllocation {
+  id: string;
+  name: string;
+  category: TransactionCategory;
+  allocatedAmount: number;
+  spentAmount: number;
+  isEssential: boolean;
+  impactIndicator: "high" | "medium" | "low";
+  color: string;
+}
+
+export interface BudgetSuggestion {
+  category: string;
+  suggestedAmount: number;
+  percentage: number;
+  reasoning: string;
+}
+
+export interface AIBudgetResponse {
+  suggestions: BudgetSuggestion[];
+  totalAllocated: number;
+  remainingAmount: number;
+  insight: string;
+  status: "balanced" | "over-allocated" | "under-allocated";
+}
+
+export interface AllocationStatus {
+  totalIncome: number;
+  totalAllocated: number;
+  remainingToAllocate: number;
+  allocationPercentage: number;
+  status: "balanced" | "warning" | "critical";
+  message?: string;
+}
+
 export type TransactionCategory =
   | "housing"
   | "food"
@@ -59,6 +103,7 @@ export interface DashboardSummary {
   monthlySurplus: number;
   budgetProgress: number;
   savingsRate: number;
+  allocationStatus?: AllocationStatus;
 }
 
 export interface SmartInsight {
@@ -92,4 +137,41 @@ export interface NotificationCard {
   isRead: boolean;
 }
 
-export type DashboardView = "home" | "transactions" | "budget" | "goals" | "insights";
+export type DashboardView = "home" | "budgeting" | "analytics" | "transactions" | "budget" | "goals" | "insights";
+
+// Transaction Entry Types
+export type TransactionType = "income" | "expense";
+export type TransactionInputMethod = "manual" | "photo" | "upload";
+
+export interface TransactionFormData {
+  type: TransactionType;
+  category: string;
+  account: string;
+  amount: string;
+  date: string;
+  merchant?: string;
+  note?: string;
+  attachment?: File | null;
+  imageUrl?: string | null;
+}
+
+export interface OCRResult {
+  merchant: string;
+  date: string;
+  amount: number;
+  confidence: number;
+  rawText?: string;
+}
+
+export interface TransactionCategoryOption {
+  value: string;
+  label: string;
+  icon: string;
+  type: "income" | "expense" | "both";
+}
+
+export interface IncomeAccountOption {
+  value: string;
+  label: string;
+  icon: string;
+}

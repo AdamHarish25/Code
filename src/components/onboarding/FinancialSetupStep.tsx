@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   Briefcase,
   Coins,
+  Loader2,
 } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { IncomeSource, ExpenseCategory } from "@/types/onboarding";
@@ -56,7 +57,7 @@ const frequencyOptions = [
 ] as const;
 
 export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
-  const { data, addIncomeSource, removeIncomeSource, addExpense, removeExpense } =
+  const { data, addIncomeSource, removeIncomeSource, addExpense, removeExpense, isSaving, completeOnboarding } =
     useOnboarding();
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -98,10 +99,13 @@ export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
     removeExpense(index);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (data.incomeSources.length > 0) {
       triggerHaptic([30, 50, 30]);
-      onNext();
+      const success = await completeOnboarding();
+      if (success) {
+        onNext();
+      }
     }
   };
 
@@ -452,16 +456,23 @@ export function FinancialSetupStep({ onNext }: { onNext: () => void }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         onClick={handleContinue}
-        disabled={data.incomeSources.length === 0}
+        disabled={data.incomeSources.length === 0 || isSaving}
         className={`w-full py-4 rounded-2xl font-semibold transition-all ${
-          data.incomeSources.length > 0
+          data.incomeSources.length > 0 && !isSaving
             ? "bg-primary text-black hover:bg-primary-hover"
             : "bg-surface text-muted cursor-not-allowed"
         }`}
-        whileHover={data.incomeSources.length > 0 ? { scale: 1.02, y: -2 } : {}}
-        whileTap={data.incomeSources.length > 0 ? { scale: 0.98 } : {}}
+        whileHover={data.incomeSources.length > 0 && !isSaving ? { scale: 1.02, y: -2 } : {}}
+        whileTap={data.incomeSources.length > 0 && !isSaving ? { scale: 0.98 } : {}}
       >
-        Continue
+        {isSaving ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Saving...
+          </span>
+        ) : (
+          "Continue"
+        )}
       </motion.button>
     </motion.div>
   );
