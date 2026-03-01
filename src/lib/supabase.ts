@@ -45,6 +45,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    storageKey: "sb-auth-token",
   },
 });
 
@@ -52,7 +54,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
  * Server-side Supabase client (lazy initialization)
  * Uses service role key (bypasses RLS)
  * ONLY use in server components and server actions
- * 
+ *
  * Note: This is lazy-loaded to avoid issues with client-side imports
  */
 let _supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null;

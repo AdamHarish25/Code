@@ -54,6 +54,22 @@ export function AuthStep({ onComplete }: AuthStepProps) {
         if (result.success && result.user) {
           const userId = result.user.id;
 
+          // AUTO SIGN IN - No email verification required
+          console.log("[AuthStep] Signing in automatically...");
+          const signInResult = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (signInResult.error) {
+            console.error("[AuthStep] Auto sign-in failed:", signInResult.error.message);
+            setError("Account created but sign-in failed. Please sign in manually.");
+            setTimeout(() => router.push("/auth/signin"), 2000);
+            return;
+          }
+
+          console.log("[AuthStep] ✅ Auto sign-in successful");
+
           // Save onboarding data immediately
           const onboardingDataToSave = {
             ...data,
@@ -80,6 +96,7 @@ export function AuthStep({ onComplete }: AuthStepProps) {
               // Clear sessionStorage
               sessionStorage.removeItem('onboardingData');
 
+              console.log("[AuthStep] ✅ All done, redirecting to dashboard...");
               // Redirect directly to dashboard
               router.push("/dashboard");
             } else {

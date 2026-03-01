@@ -155,6 +155,25 @@ export async function saveOnboardingData(
 
     console.log(`[Onboarding] Data saved successfully for user ${userId}`);
 
+    // IMPORTANT: Mark onboarding as completed in user metadata
+    // This ensures the user won't be redirected to onboarding again
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      userId,
+      {
+        user_metadata: {
+          onboarding_completed: true,
+          onboarding_completed_at: new Date().toISOString(),
+        },
+      }
+    );
+
+    if (updateError) {
+      console.error("[Onboarding] Failed to update user metadata:", updateError.message);
+      // Don't fail the whole operation, just log the error
+    } else {
+      console.log("[Onboarding] ✅ User metadata updated - onboarding completed");
+    }
+
     return {
       success: true,
       message: "Onboarding data saved successfully",

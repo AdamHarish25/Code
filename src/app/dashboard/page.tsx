@@ -24,28 +24,53 @@ export default function DashboardPage() {
 
   // Check authentication on mount
   useEffect(() => {
-    console.log("[Dashboard Page] Checking authentication...");
-    
-    // Get session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("[Dashboard Page] Session:", !!session, session?.user?.email);
-      setIsAuthenticated(!!session);
-      setIsAuthReady(true);
+    const checkAuth = async () => {
+      console.log("[Dashboard Page] Checking authentication...");
       
-      if (!session) {
-        console.warn("[Dashboard Page] No session, redirecting to signin");
-        router.push("/auth/signin");
+      try {
+        // Wait for session to initialize from localStorage
+        // This is CRITICAL for SSR/cookie-based auth
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("[Dashboard Page] Session check error:", sessionError.message);
+        }
+        
+        console.log("[Dashboard Page] Session result:", {
+          hasSession: !!session,
+          email: session?.user?.email,
+          userId: session?.user?.id,
+          onboardingCompleted: session?.user?.user_metadata?.onboarding_completed,
+        });
+        
+        if (session) {
+          setIsAuthenticated(true);
+          setIsAuthReady(true);
+        } else {
+          console.warn("[Dashboard Page] No session found, redirecting to signin");
+          router.push("/auth/signin");
+        }
+      } catch (err) {
+        console.error("[Dashboard Page] Auth check error:", err);
+        setIsAuthReady(true);
       }
-    });
+    };
+    
+    checkAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("[Dashboard Page] Auth event:", event, !!session);
-        setIsAuthenticated(!!session);
-        setIsAuthReady(true);
+        console.log("[Dashboard Page] Auth event:", event, {
+          hasSession: !!session,
+          email: session?.user?.email,
+        });
         
-        if (!session && event === "SIGNED_OUT") {
+        if (session) {
+          setIsAuthenticated(true);
+          setIsAuthReady(true);
+        } else if (event === "SIGNED_OUT") {
+          setIsAuthenticated(false);
           router.push("/auth/signin");
         }
       }
@@ -78,7 +103,7 @@ export default function DashboardPage() {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  // Show nothing while checking auth
+  // Show loading while checking auth
   if (!isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -90,7 +115,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Redirect if not authenticated
+  // Show nothing if not authenticated (will redirect)
   if (!isAuthenticated) {
     return null;
   }

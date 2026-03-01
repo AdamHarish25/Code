@@ -1,27 +1,18 @@
 /**
  * Supabase Auth Utilities
  * Email-based authentication functions
- * Requires Supabase to be configured
+ * Uses client-side Supabase for session persistence
  */
 
-"use server";
+"use client";
 
-import { getSupabaseAdmin, isSupabaseConfigured } from "./supabase";
-import { headers } from "next/headers";
+import { supabase } from "./supabase";
 
 /**
  * Sign Up with Email
  */
 export async function signUpWithEmail(email: string, password: string) {
   try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured()) {
-      return {
-        success: false,
-        error: "Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.",
-      };
-    }
-
     if (!email || !password) {
       return {
         success: false,
@@ -46,15 +37,9 @@ export async function signUpWithEmail(email: string, password: string) {
       };
     }
 
-    const { data, error } = await getSupabaseAdmin().auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-        data: {
-          onboarding_completed: false,
-        },
-      },
     });
 
     if (error) {
@@ -68,7 +53,8 @@ export async function signUpWithEmail(email: string, password: string) {
     return {
       success: true,
       user: data.user,
-      message: "Account created! Please check your email to verify.",
+      session: data.session,
+      message: "Account created!",
     };
   } catch (error) {
     console.error("[Auth] Sign up error:", error);
@@ -84,14 +70,6 @@ export async function signUpWithEmail(email: string, password: string) {
  */
 export async function signInWithEmail(email: string, password: string) {
   try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured()) {
-      return {
-        success: false,
-        error: "Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.",
-      };
-    }
-
     if (!email || !password) {
       return {
         success: false,
@@ -99,7 +77,7 @@ export async function signInWithEmail(email: string, password: string) {
       };
     }
 
-    const { data, error } = await getSupabaseAdmin().auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -131,8 +109,8 @@ export async function signInWithEmail(email: string, password: string) {
  */
 export async function signOut() {
   try {
-    const { error } = await getSupabaseAdmin().auth.signOut();
-    
+    const { error } = await supabase.auth.signOut();
+
     if (error) {
       console.error("[Auth] Sign out error:", error.message);
       return {
@@ -154,12 +132,12 @@ export async function signOut() {
 }
 
 /**
- * Get Current User (Server-side)
+ * Get Current User (Client-side)
  */
 export async function getCurrentUser() {
   try {
-    const { data: { user }, error } = await getSupabaseAdmin().auth.getUser();
-    
+    const { data: { user }, error } = await supabase.auth.getUser();
+
     if (error || !user) {
       return null;
     }
@@ -174,102 +152,5 @@ export async function getCurrentUser() {
   } catch (error) {
     console.error("[Auth] Get user error:", error);
     return null;
-  }
-}
-
-/**
- * Update User Profile
- */
-export async function updateUserProfile(updates: {
-  full_name?: string;
-  avatar_url?: string;
-  onboarding_completed?: boolean;
-}) {
-  try {
-    const { data, error } = await getSupabaseAdmin().auth.updateUser({
-      data: updates,
-    });
-
-    if (error) {
-      console.error("[Auth] Update profile error:", error.message);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
-    return {
-      success: true,
-      user: data.user,
-    };
-  } catch (error) {
-    console.error("[Auth] Update profile error:", error);
-    return {
-      success: false,
-      error: "An unexpected error occurred",
-    };
-  }
-}
-
-/**
- * Reset Password
- */
-export async function resetPassword(email: string) {
-  try {
-    const { error } = await getSupabaseAdmin().auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`,
-    });
-
-    if (error) {
-      console.error("[Auth] Reset password error:", error.message);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
-    return {
-      success: true,
-      message: "Password reset email sent!",
-    };
-  } catch (error) {
-    console.error("[Auth] Reset password error:", error);
-    return {
-      success: false,
-      error: "An unexpected error occurred",
-    };
-  }
-}
-
-/**
- * Verify OTP (for email confirmation)
- */
-export async function verifyOtp(email: string, token: string) {
-  try {
-    const { data, error } = await getSupabaseAdmin().auth.verifyOtp({
-      email,
-      token,
-      type: "email",
-    });
-
-    if (error) {
-      console.error("[Auth] Verify OTP error:", error.message);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
-    return {
-      success: true,
-      user: data.user,
-      session: data.session,
-    };
-  } catch (error) {
-    console.error("[Auth] Verify OTP error:", error);
-    return {
-      success: false,
-      error: "An unexpected error occurred",
-    };
   }
 }

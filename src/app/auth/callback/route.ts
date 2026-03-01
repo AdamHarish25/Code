@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Handle email confirmation
+  // Handle email confirmation (signup/recovery)
   if (type === "signup" || type === "recovery") {
     if (token_hash) {
       try {
@@ -49,13 +49,11 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(redirectUrl);
         }
 
-        // Successfully verified - create session and save onboarding data
+        // Successfully verified - create session and check onboarding status
         if (data.user && data.session) {
-          const userId = data.user.id;
-
-          // Check if user has pending onboarding data in session
-          // For now, redirect to onboarding completion or dashboard
           const onboardingComplete = data.user.user_metadata?.onboarding_completed;
+
+          console.log("[Auth Callback] Email verified, onboarding complete:", onboardingComplete);
 
           // Set up the response with the session cookie
           const response = NextResponse.redirect(
@@ -81,6 +79,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // For other auth types or if no token, redirect to dashboard
+  // For regular sign in (no token), check onboarding status and redirect appropriately
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+      const onboardingComplete = session.user.user_metadata?.onboarding_completed;
+      console.log("[Auth Callback] Regular sign-in, onboarding complete:", onboardingComplete);
+      
+      return NextResponse.redirect(
+        new URL(onboardingComplete ? "/dashboard" : "/onboarding/complete", request.url)
+      );
+    }
+  } catch (err) {
+    console.error("[Auth Callback] Sign-in check error:", err);
+  }
+
+  // Fallback: redirect to dashboard
   return NextResponse.redirect(new URL(next, request.url));
 }

@@ -26,7 +26,7 @@ export default function OnboardingCompletePage() {
       try {
         // Get current user from session
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (!user) {
           setStatus("error");
           setErrorMessage("Please sign in to complete onboarding");
@@ -46,10 +46,31 @@ export default function OnboardingCompletePage() {
 
         if (result.success) {
           setStatus("success");
+          
+          // Update user metadata to mark onboarding as complete
+          // This ensures next login goes directly to dashboard
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: {
+              onboarding_completed: true,
+              onboarding_completed_at: new Date().toISOString(),
+            },
+          });
+          
+          if (updateError) {
+            console.error("[Onboarding] Failed to update metadata:", updateError.message);
+          } else {
+            console.log("[Onboarding] ✅ User metadata updated");
+          }
+          
+          console.log("[Onboarding] ✅ Onboarding complete, redirecting to dashboard...");
+          
+          // Force a session refresh to ensure metadata is updated
+          await supabase.auth.refreshSession();
+          
           // Redirect to dashboard after short delay
           setTimeout(() => {
             router.push("/dashboard");
-          }, 2000);
+          }, 1500);
         } else {
           setStatus("error");
           setErrorMessage(result.error || "Failed to save onboarding data");

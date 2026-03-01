@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { signInWithEmail } from "@/lib/auth";
 import { useOnboarding } from "@/lib/onboarding-store";
+import { supabase } from "@/lib/supabase";
 
 export function SignInPage() {
   const router = useRouter();
@@ -29,11 +30,37 @@ export function SignInPage() {
 
     try {
       const result = await signInWithEmail(email, password);
-      
-      if (result.success && result.user) {
+
+      if (result.success && result.user && result.session) {
         setUserId(result.user.id);
-        // Redirect to onboarding or dashboard
-        router.push("/onboarding");
+        
+        // Ensure session is persisted before redirect
+        console.log("[SignIn] Session received, verifying persistence...");
+        
+        // Double-check session is active
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          console.error("[SignIn] Session not persisted, retrying...");
+          // Session didn't persist, something is wrong
+          setError("Session failed to persist. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check if onboarding is complete
+        const onboardingComplete = result.user.user_metadata?.onboarding_completed;
+        
+        console.log("[SignIn] ✅ Session verified, onboarding complete:", onboardingComplete);
+        
+        // Redirect based on onboarding status
+        if (onboardingComplete) {
+          console.log("[SignIn] Redirecting to dashboard...");
+          router.push("/dashboard");
+        } else {
+          console.log("[SignIn] Redirecting to onboarding...");
+          router.push("/onboarding");
+        }
       } else {
         setError(result.error || "Failed to sign in");
       }

@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 import { signUpWithEmail } from "@/lib/auth";
 import { useOnboarding } from "@/lib/onboarding-store";
+import { supabase } from "@/lib/supabase";
 
 export function SignUpPage() {
   const router = useRouter();
@@ -48,10 +49,28 @@ export function SignUpPage() {
       if (result.success && result.user) {
         setUserId(result.user.id);
         setSuccess(true);
-        // Redirect to email verification page
-        setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
-        }, 1500);
+        
+        console.log("[SignUp] ✅ User created successfully");
+        
+        // Automatically sign in - NO email verification required
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (signInError) {
+          console.error("[SignUp] Auto sign-in failed:", signInError.message);
+          setError("Account created but sign-in failed. Please sign in manually.");
+          setTimeout(() => {
+            router.push("/auth/signin");
+          }, 2000);
+        } else {
+          console.log("[SignUp] ✅ Signed in, redirecting to dashboard...");
+          // Directly to dashboard - onboarding data already saved
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 1000);
+        }
       } else {
         setError(result.error || "Failed to create account");
       }
