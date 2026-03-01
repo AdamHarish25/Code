@@ -8,6 +8,7 @@
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Wallet, DollarSign, PieChart } from "lucide-react";
 import { ExpensesSummary } from "@/actions/analytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface ExpensesSummaryCardProps {
   summary: ExpensesSummary | null;
@@ -31,14 +32,7 @@ export function ExpensesSummaryCard({ summary, isLoading }: ExpensesSummaryCardP
 
   const { netBalance, totalIncome, totalExpenses, changePercent } = summary;
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  // Use centralized formatCurrency from utils
 
   const getChangeIcon = () => {
     if (changePercent > 0) {
@@ -58,11 +52,11 @@ export function ExpensesSummaryCard({ summary, isLoading }: ExpensesSummaryCardP
 
   const getChangeText = () => {
     if (changePercent > 0) {
-      return `+${changePercent}% Increase`;
+      return `+${changePercent}% vs last period`;
     } else if (changePercent < 0) {
-      return `${changePercent}% Decrease`;
+      return `${changePercent}% vs last period`;
     }
-    return "No Change";
+    return "No change";
   };
 
   return (

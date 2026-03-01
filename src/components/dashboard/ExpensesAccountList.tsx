@@ -8,6 +8,7 @@
 import { motion } from "framer-motion";
 import { Home, Utensils, Train, Heart, Gamepad2, ShoppingBag, Zap, MoreHorizontal, Wallet, TrendingUp } from "lucide-react";
 import { ExpensesByAccount } from "@/actions/analytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface ExpensesAccountListProps {
   data: ExpensesByAccount[];
@@ -40,14 +41,7 @@ export function ExpensesAccountList({
   isLoading,
   onCategoryClick,
 }: ExpensesAccountListProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  // Use centralized formatCurrency from utils
 
   if (isLoading) {
     return (

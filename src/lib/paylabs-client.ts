@@ -401,13 +401,13 @@ export class PaylabsClient {
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    return {
+    const mockResponse: PaylabsResponse<PayinTransactionResponse> = {
       success: true,
       statusCode: 200,
       data: {
         transactionId: request.transactionId,
         paylabsTransactionId: `pl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        status: "pending",
+        status: "success", 
         paymentUrl: `https://sit-pay.paylabs.co.id/pay/${request.transactionId}`,
         amount: request.amount,
         currency: request.currency || "IDR",
@@ -416,6 +416,56 @@ export class PaylabsClient {
       },
       timestamp: new Date().toISOString(),
     };
+
+    // AUTO-APPROVE: Immediately send success webhook
+    if (request.callbackUrl) {
+      setTimeout(() => {
+        this.simulateWebhookCallback(request, mockResponse.data!, "transaction.success");
+      }, 500); // Send webhook after 500ms
+    }
+
+    return mockResponse;
+  }
+
+  /**
+   * Simulate webhook callback for testing
+   */
+  private async simulateWebhookCallback(
+    request: PayinTransactionRequest,
+    response: PayinTransactionResponse,
+    eventType: string = "transaction.success"
+  ) {
+    const webhookPayload = {
+      eventId: `evt_${Date.now()}`,
+      eventType: eventType,
+      merchantId: this.merchantId,
+      transactionId: response.transactionId,
+      amount: response.amount,
+      currency: response.currency,
+      status: response.status,
+      timestamp: new Date().toISOString(),
+      signature: "mock_signature",
+      data: request.metadata,
+    };
+
+    console.log("[Paylabs] 🎯 AUTO-APPROVE: Sending webhook:", webhookPayload);
+
+    // Send webhook to callback URL
+    try {
+      await fetch(request.callbackUrl || "", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-paylabs-signature": webhookPayload.signature,
+          "x-paylabs-timestamp": webhookPayload.timestamp,
+          "x-paylabs-merchant-id": this.merchantId,
+        },
+        body: JSON.stringify(webhookPayload),
+      });
+      console.log("[Paylabs] ✅ Webhook sent - transaction approved!");
+    } catch (error) {
+      console.error("[Paylabs] Webhook failed:", error);
+    }
   }
 
   /**

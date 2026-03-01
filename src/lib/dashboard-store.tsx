@@ -399,21 +399,33 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
       type: insight.type,
     });
 
-    if (result.success && result.data) {
-      const dbInsight = result.data;
-      const newInsight: SmartInsight = {
-        id: dbInsight.id,
-        title: dbInsight.title,
-        content: dbInsight.content,
-        type: dbInsight.type as "advice" | "alert" | "opportunity" | "achievement",
-        timestamp: dbInsight.created_at,
-        isRead: dbInsight.is_read ?? false,
+    if (result.success) {
+      // Create insight object (use local ID if DB save failed)
+      const newInsight: SmartInsight = result.data ? {
+        id: result.data.id,
+        title: result.data.title,
+        content: result.data.content,
+        type: result.data.type as "advice" | "alert" | "opportunity" | "achievement",
+        timestamp: result.data.created_at,
+        isRead: result.data.is_read ?? false,
+      } : {
+        id: Math.random().toString(36).substring(2, 9),
+        title: insight.title,
+        content: insight.content,
+        type: insight.type,
+        timestamp: new Date().toISOString(),
+        isRead: false,
       };
+      
       setState((prev) => ({
         ...prev,
         insights: [newInsight, ...prev.insights],
         lastUpdated: new Date(),
       }));
+      
+      console.log("[Dashboard] ✅ Insight added to state:", newInsight.title);
+    } else {
+      console.warn("[Dashboard] Failed to create insight:", result.error);
     }
   }, []);
 
@@ -770,10 +782,10 @@ function calculateAllocationStatus(
     const unallocatedPercent = 100 - allocationPercentage;
     if (unallocatedPercent > 30) {
       status = "critical";
-      message = `${unallocatedPercent.toFixed(0)}% income belum dialokasikan`;
+      message = `${unallocatedPercent.toFixed(0)}% of income not allocated`;
     } else {
       status = "warning";
-      message = `${unallocatedPercent.toFixed(0)}% income belum dialokasikan`;
+      message = `${unallocatedPercent.toFixed(0)}% of income not allocated`;
     }
   } else {
     status = "critical";
@@ -886,7 +898,7 @@ function calculateSummaryFromData(
     .filter((t) => t.type === "expense" && t.status === "completed")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Calculate from income sources (more reliable for recurring income)
+  // Calculate monthly income from sources (recurring income)
   const monthlyIncomeFromSources = incomeSources.reduce((sum, source) => {
     let monthly = source.amount;
     switch (source.frequency) {
@@ -897,22 +909,52 @@ function calculateSummaryFromData(
     return sum + monthly;
   }, 0);
 
-  // Use income from sources if no transaction income
-  const monthlyIncome = monthlyIncomeFromTransactions || monthlyIncomeFromSources;
+  // Use income from sources (more reliable for recurring income)
+  const monthlyIncome = monthlyIncomeFromSources || monthlyIncomeFromTransactions;
+  
+  // Calculate TOTAL BALANCE (actual cash available):
+  // = Total Income (from sources) - Total Expenses (all transactions)
+  const totalIncomeFromSources = incomeSources.reduce((sum, source) => {
+    let monthly = source.amount;
+    switch (source.frequency) {
+      case "weekly": monthly *= 4.33; break;
+      case "biweekly": monthly *= 2.17; break;
+      case "yearly": monthly /= 12; break;
+    }
+    return sum + monthly;
+  }, 0);
+  
+  const totalExpensesAllTime = transactions
+    .filter((t) => t.type === "expense" && t.status === "completed")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  console.log("[calculateSummaryFromData] Expense calculation:", {
+    allTransactions: transactions.map(t => ({ type: t.type, status: t.status, amount: t.amount })),
+    expenseTransactions: transactions.filter(t => t.type === "expense"),
+    completedExpenses: transactions.filter(t => t.type === "expense" && t.status === "completed"),
+    totalExpensesAllTime,
+  });
+
+  // Total Balance = Your income minus all your expense transactions
+  const totalBalance = totalIncomeFromSources - totalExpensesAllTime;
+  
   const monthlySurplus = monthlyIncome - monthlyExpenses;
   const savingsRate = monthlyIncome > 0 ? (monthlySurplus / monthlyIncome) * 100 : 0;
 
-  // Calculate budget from allocations
+  // Calculate budget progress from allocations
   const totalBudget = allocationStatus?.totalAllocated || 0;
   const totalSpent = allocationStatus ? allocationStatus.totalAllocated - allocationStatus.remainingToAllocate : 0;
   const budgetProgress = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
-  return {
-    totalBalance: monthlySurplus,
+  const result = {
+    totalBalance: Math.round(totalBalance),  
     monthlyIncome: Math.round(monthlyIncome),
     monthlyExpenses: Math.round(monthlyExpenses),
     monthlySurplus: Math.round(monthlySurplus),
     budgetProgress,
     savingsRate: Math.max(0, savingsRate),
   };
+
+  console.log("[calculateSummaryFromData] Result:", result);
+  return result;
 }

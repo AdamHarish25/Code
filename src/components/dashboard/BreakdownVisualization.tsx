@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 import { CategoryBreakdown } from "@/actions/analytics";
+import { formatCurrency } from "@/lib/utils";
 
 interface BreakdownVisualizationProps {
   data: CategoryBreakdown[];
@@ -43,14 +44,7 @@ export function BreakdownVisualization({ data, isLoading }: BreakdownVisualizati
     return data.reduce((sum, item) => sum + item.amount, 0);
   }, [data]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  // Use centralized formatCurrency from utils
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -75,8 +69,8 @@ export function BreakdownVisualization({ data, isLoading }: BreakdownVisualizati
             <PieChartIcon className="w-5 h-5 text-secondary" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Category Breakdown</h3>
-            <p className="text-sm text-muted">Expense distribution by category</p>
+            <h3 className="text-lg font-semibold">Expense Breakdown</h3>
+            <p className="text-sm text-muted">Distribution by category</p>
           </div>
         </div>
         <div className="h-64 bg-surface-hover rounded-2xl animate-pulse" />
@@ -92,12 +86,12 @@ export function BreakdownVisualization({ data, isLoading }: BreakdownVisualizati
             <PieChartIcon className="w-5 h-5 text-secondary" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Category Breakdown</h3>
-            <p className="text-sm text-muted">Expense distribution by category</p>
+            <h3 className="text-lg font-semibold">Expense Breakdown</h3>
+            <p className="text-sm text-muted">Distribution by category</p>
           </div>
         </div>
         <div className="h-64 flex items-center justify-center text-muted">
-          No category data available
+          No expense data available
         </div>
       </div>
     );

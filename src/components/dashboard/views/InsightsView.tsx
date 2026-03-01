@@ -43,19 +43,36 @@ export function InsightsView() {
   const handleRefreshInsight = async () => {
     setIsLoading(true);
     try {
+      console.log("[InsightsView] Generating new AI insight...");
+      
       const result = await getSmartInsight();
+      
+      console.log("[InsightsView] Insight result:", result);
+      
       if (result.success && result.insight) {
+        console.log("[InsightsView] ✅ AI Insight received:", result.insight);
+        
         // Save to Supabase through the context
-        await addInsight({
-          title: "New Financial Insight",
-          content: result.insight,
-          type: "advice",
-        });
+        try {
+          await addInsight({
+            title: "New Financial Insight",
+            content: result.insight,
+            type: "advice",
+          });
+          console.log("[InsightsView] ✅ Insight saved to database");
+        } catch (saveError) {
+          console.warn("[InsightsView] Failed to save insight, displaying anyway:", saveError);
+        }
+        
         // Also refresh data to get latest from database
         await refreshData();
+        
+        console.log("[InsightsView] ✅ Insight refresh complete");
+      } else {
+        console.warn("[InsightsView] Insight generation returned no insight");
       }
     } catch (error) {
-      console.error("Failed to refresh insight:", error);
+      console.error("[InsightsView] Failed to refresh insight:", error);
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +138,7 @@ export function InsightsView() {
           </span>
         </div>
 
-        {displayInsights.map((insight, index) => {
+        {displayInsights.length >= 1 && displayInsights.map((insight, index) => {
           const Icon = insightIcons[insight.type];
           const colorClass = insightColors[insight.type];
 

@@ -6,6 +6,8 @@
 "use server";
 
 import { OnboardingData } from "@/types/onboarding";
+import { generateInsight } from "@/lib/qwen-client";
+import { useDashboard } from "@/lib/dashboard-store";
 
 interface InsightResult {
   success: boolean;
@@ -16,21 +18,38 @@ interface InsightResult {
 
 /**
  * Get smart financial insight based on user data
- * Uses Qwen API with SSE support for real-time streaming
+ * Uses Qwen API via qwen-client
  */
 export async function getSmartInsight(
   userData?: Partial<OnboardingData>
 ): Promise<InsightResult> {
   try {
-    const prompt = buildInsightPrompt(userData);
-    const insight = await callQwenAPI(prompt);
+    console.log("[Insights] Generating smart insight...");
+    
+    // Get current user data from dashboard if not provided
+    let insightUserData = userData;
+    
+    if (!insightUserData) {
+      // Use fallback data for now
+      insightUserData = {};
+    }
+    
+    // Generate insight using Qwen
+    const insight = await generateInsight({
+      income: insightUserData?.incomeSources?.reduce((sum, s) => sum + s.amount, 0),
+      expenses: 0, // Would calculate from transactions
+      goals: insightUserData?.goals?.map(g => g.name),
+      investmentPath: insightUserData?.investmentPath || undefined,
+    });
+
+    console.log("[Insights] ✅ Insight generated:", insight);
 
     return {
       success: true,
       insight,
     };
   } catch (error) {
-    console.error("Failed to generate insight:", error);
+    console.error("[Insights] Failed to generate insight:", error);
     return {
       success: true,
       insight: generateFallbackInsight(),

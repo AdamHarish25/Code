@@ -125,10 +125,10 @@ export async function getAllocationInsight(
     const unallocatedPercent = 100 - allocationPercentage;
     if (unallocatedPercent > 30) {
       status = "critical";
-      message = `${unallocatedPercent.toFixed(0)}% income belum dialokasikan`;
+      message = `${unallocatedPercent.toFixed(0)}% of income not allocated`;
     } else {
       status = "warning";
-      message = `${unallocatedPercent.toFixed(0)}% income belum dialokasikan`;
+      message = `${unallocatedPercent.toFixed(0)}% of income not allocated`;
     }
   } else {
     status = "critical";

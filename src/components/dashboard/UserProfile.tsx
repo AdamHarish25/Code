@@ -131,7 +131,7 @@ export function UserProfile() {
             <div className="p-2">
               <button
                 onClick={() => {
-                  // TODO: Navigate to settings
+                  
                   setShowMenu(false);
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-background transition-colors text-sm"

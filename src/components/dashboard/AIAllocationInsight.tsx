@@ -98,7 +98,7 @@ export function AIAllocationInsight({ onDismiss }: AIAllocationInsightProps) {
           borderColor: "border-warning/20",
           textColor: "text-warning",
           title: "Attention Needed",
-          description: "Some income is not allocated",
+          description: `${(100 - allocationPercentage).toFixed(0)}% of income not allocated`,
         };
       case "critical":
         return {
@@ -107,7 +107,7 @@ export function AIAllocationInsight({ onDismiss }: AIAllocationInsightProps) {
           borderColor: "border-danger/20",
           textColor: "text-danger",
           title: "Critical",
-          description: "Significant portion unallocated or over-budget",
+          description: `${(100 - allocationPercentage).toFixed(0)}% of income not allocated`,
         };
     }
   };

@@ -7,7 +7,7 @@
 
 import { TransactionFormData } from "@/types/dashboard";
 import { processPayinTransaction } from "@/lib/paylabs-services";
-import { createTransaction as dbCreateTransaction } from "@/lib/database";
+import { createTransaction as dbCreateTransaction, createIncomeSource } from "@/lib/database";
 
 interface TransactionResult {
   success: boolean;
@@ -30,7 +30,7 @@ export async function createTransaction(
   try {
     // Get user ID - either from parameter or from auth
     let actualUserId = userId;
-    
+
     if (!actualUserId) {
       // Server actions can't read cookies reliably
       // User ID must be passed from client
@@ -40,9 +40,9 @@ export async function createTransaction(
         error: "User ID required. Please sign in.",
       };
     }
-    
+
     console.log("[Transaction] Creating for user ID:", actualUserId);
-    
+
     // Validate required fields
     if (!data.type || !data.category || !data.account || !data.amount || !data.date) {
       return {
@@ -93,6 +93,33 @@ export async function createTransaction(
 
     if (!dbResult.success) {
       console.warn("[Transaction] Paylabs success but DB failed:", dbResult.error);
+    }
+
+    // If this is an INCOME transaction, also create an income source
+    if (data.type === "income") {
+      console.log("[Transaction] Income transaction detected, creating income source...");
+      
+      try {
+        const incomeSourceResult = await createIncomeSource({
+          user_id: actualUserId,
+          name: data.merchant || `${data.category} income`,
+          amount: amount,
+          frequency: "monthly",
+          type: data.category === "salary" ? "salary" : 
+                 data.category === "freelance" ? "freelance" : 
+                 data.category === "investment" ? "investment" : "side-hustle",
+          is_active: true,
+        });
+
+        if (incomeSourceResult.success) {
+          console.log("[Transaction] ✅ Income source created:", incomeSourceResult.data?.id);
+        } else {
+          console.warn("[Transaction] Failed to create income source:", incomeSourceResult.error);
+        }
+      } catch (incomeError) {
+        console.error("[Transaction] Income source creation error:", incomeError);
+        // Don't fail the transaction if income source creation fails
+      }
     }
 
     console.log(`✅ Transaction created: ${paylabsResult.transactionId}`);

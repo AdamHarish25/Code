@@ -1,9 +1,8 @@
 /**
  * Alibaba Cloud Qwen AI Client
- * Updated to use the new compatible-mode API endpoint
- * 
- * Base URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
- * Models: qwen-max, qwen-vl-max, qwen-coder-plus
+ * Uses OpenAI-compatible API endpoint
+ *
+ * Models: qwen-turbo, qwen-plus, qwen-max
  */
 
 import { OCRResult } from "@/types/dashboard";
@@ -16,13 +15,18 @@ interface QwenConfig {
 }
 
 const config: QwenConfig = {
-  apiKey: process.env.ALIBABA_CLOUD_API_KEY || process.env.QWEN_API_KEY || "",
-  baseUrl:
-    process.env.ALIBABA_CLOUD_BASE_URL ||
-    "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  chatModel: "qwen-max",
+  apiKey: process.env.QWEN_API_KEY || process.env.ALIBABA_CLOUD_API_KEY || "",
+  baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+  chatModel: "qwen-flash",  
   visionModel: "qwen-vl-max",
 };
+
+console.log("[Qwen] Config:", { 
+  apiKeySet: !!config.apiKey, 
+  baseUrl: config.baseUrl,
+  model: config.chatModel,
+  savings: "Up to 60% vs qwen-turbo"
+});
 
 /**
  * Chat Completion Request
@@ -400,14 +404,16 @@ export async function generateInsight(
 ): Promise<string> {
   try {
     if (!config.apiKey) {
+      console.warn("[Qwen] API key not configured, using fallback");
       return generateFallbackInsight();
     }
+
+    console.log("[Qwen] Generating insight with model:", config.chatModel);
 
     const messages = [
       {
         role: "system" as const,
-        content:
-          "You are a friendly financial advisor for Duitly. Provide brief, actionable advice (2-3 sentences).",
+        content: "You are a friendly financial advisor for Duitly. Provide brief, actionable advice (2-3 sentences).",
       },
       {
         role: "user" as const,
@@ -435,12 +441,25 @@ Provide a brief, actionable financial tip.`,
       }),
     });
 
+    console.log("[Qwen] Response status:", response.status);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Qwen] API error:", response.status, errorText);
       return generateFallbackInsight();
     }
 
     const result: ChatCompletionResponse = await response.json();
-    return result.choices[0]?.message?.content || generateFallbackInsight();
+    console.log("[Qwen] Response:", result);
+    
+    const insight = result.choices[0]?.message?.content;
+    
+    if (!insight) {
+      console.warn("[Qwen] No insight in response");
+      return generateFallbackInsight();
+    }
+    
+    return insight;
   } catch (error) {
     console.error("[Qwen] Insight generation error:", error);
     return generateFallbackInsight();

@@ -20,17 +20,22 @@ export function SmartInsightCard() {
   const loadInsight = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getSmartInsight();
+      // Pass current dashboard data to insight generator
+      const result = await getSmartInsight({
+        investmentPath: "conservative", // Could come from user profile
+        incomeSources: [], // Would come from dashboard store
+        goals: [], // Would come from dashboard store
+      });
+      
       if (result.success && result.insight) {
+        console.log("[SmartInsight] ✅ AI Insight loaded:", result.insight);
         setCurrentInsight(result.insight);
-        // Don't save to store - just display the insight
-        // This avoids RLS policy errors
       } else {
-        // Use fallback insight
+        console.warn("[SmartInsight] Using fallback insight");
         setCurrentInsight("Track your expenses consistently to build better financial habits.");
       }
     } catch (error) {
-      console.warn("[SmartInsight] Using fallback insight");
+      console.warn("[SmartInsight] Error loading insight:", error);
       setCurrentInsight("Track your expenses consistently to build better financial habits.");
     } finally {
       setIsLoading(false);

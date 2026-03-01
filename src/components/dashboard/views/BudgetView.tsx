@@ -5,6 +5,7 @@
  * Detailed budget management view with real Supabase data
  */
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Plus, PiggyBank, TrendingUp } from "lucide-react";
 import { useDashboard } from "@/lib/dashboard-store";
@@ -41,7 +42,17 @@ const categoryLabels: Record<TransactionCategory, string> = {
 };
 
 export function BudgetView() {
-  const { categoryAllocations, transactions } = useDashboard();
+  const { categoryAllocations, transactions, isLoading } = useDashboard();
+
+  // Debug logging
+  useEffect(() => {
+    console.log("[BudgetView] Data loaded:", {
+      allocationsCount: categoryAllocations.length,
+      allocations: categoryAllocations,
+      transactionsCount: transactions.length,
+      isLoading,
+    });
+  }, [categoryAllocations, transactions, isLoading]);
 
   // Calculate totals from allocations
   const totalBudget = categoryAllocations.reduce((sum, c) => sum + c.allocatedAmount, 0);
