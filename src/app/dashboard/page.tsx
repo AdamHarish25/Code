@@ -9,8 +9,8 @@ import { DashboardLayout } from "@/components/dashboard";
 import { DashboardProvider } from "@/lib/dashboard-store";
 import { NotificationContainer } from "@/components/dashboard";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { getSession, onAuthStateChange } from "@/lib/auth-config";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,9 +28,7 @@ export default function DashboardPage() {
       console.log("[Dashboard Page] Checking authentication...");
       
       try {
-        // Wait for session to initialize from localStorage
-        // This is CRITICAL for SSR/cookie-based auth
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await getSession();
         
         if (sessionError) {
           console.error("[Dashboard Page] Session check error:", sessionError.message);
@@ -59,45 +57,21 @@ export default function DashboardPage() {
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("[Dashboard Page] Auth event:", event, {
-          hasSession: !!session,
-          email: session?.user?.email,
-        });
-        
-        if (session) {
-          setIsAuthenticated(true);
-          setIsAuthReady(true);
-        } else if (event === "SIGNED_OUT") {
-          setIsAuthenticated(false);
-          router.push("/auth/signin");
-        }
+    return onAuthStateChange((user) => {
+      console.log("[Dashboard Page] Auth event:", user ? "SIGNED_IN" : "SIGNED_OUT", {
+        hasUser: !!user,
+        email: user?.email,
+      });
+      
+      if (user) {
+        setIsAuthenticated(true);
+        setIsAuthReady(true);
+      } else {
+        setIsAuthenticated(false);
+        router.push("/auth/signin");
       }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    });
   }, [router]);
-
-  // Poll for Paylabs notifications
-  useEffect(() => {
-    const pollNotifications = async () => {
-      try {
-        const response = await fetch("/api/webhooks/paylabs/notifications");
-        const data = await response.json();
-        if (data.success && data.notifications.length > 0) {
-          setNotifications((prev) => [...prev, ...data.notifications]);
-        }
-      } catch (error) {
-        console.error("Failed to poll notifications:", error);
-      }
-    };
-
-    const interval = setInterval(pollNotifications, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleDismissNotification = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));

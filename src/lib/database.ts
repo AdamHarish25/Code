@@ -1,11 +1,12 @@
 /**
  * Database Services
  * CRUD operations for Supabase tables
+ * Uses admin client to bypass RLS for server-side operations
  */
 
 "use server";
 
-import { getSupabaseClient, handleSupabaseError, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin, handleSupabaseError, isSupabaseConfigured } from "@/lib/supabase";
 import type {
   IncomeSourceInsert,
   IncomeSourceUpdate,
@@ -33,7 +34,7 @@ export async function getIncomeSources(userId: string) {
   if (!DB_ENABLED) return [];
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("income_sources")
       .select("*")
@@ -53,7 +54,7 @@ export async function createIncomeSource(data: IncomeSourceInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("income_sources")
@@ -73,7 +74,7 @@ export async function updateIncomeSource(id: string, data: IncomeSourceUpdate) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("income_sources")
@@ -94,7 +95,7 @@ export async function deleteIncomeSource(id: string) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from("income_sources")
       .delete()
@@ -118,7 +119,7 @@ export async function getCategoryAllocations(userId: string) {
   if (!DB_ENABLED) return [];
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("category_allocations")
       .select("*")
@@ -137,7 +138,7 @@ export async function createCategoryAllocation(data: CategoryAllocationInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("category_allocations")
@@ -157,7 +158,7 @@ export async function updateCategoryAllocation(id: string, data: CategoryAllocat
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("category_allocations")
@@ -178,7 +179,7 @@ export async function deleteCategoryAllocation(id: string) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from("category_allocations")
       .delete()
@@ -202,7 +203,7 @@ export async function getFinancialGoals(userId: string) {
   if (!DB_ENABLED) return [];
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("financial_goals")
       .select("*")
@@ -222,7 +223,7 @@ export async function createFinancialGoal(data: FinancialGoalInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("financial_goals")
@@ -242,7 +243,7 @@ export async function updateFinancialGoal(id: string, data: FinancialGoalUpdate)
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("financial_goals")
@@ -269,7 +270,7 @@ export async function getTransactions(userId: string, limit: number = 50) {
   if (!DB_ENABLED) return [];
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("transactions")
       .select("*")
@@ -289,7 +290,7 @@ export async function getTransactionById(id: string) {
   if (!DB_ENABLED) return null;
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("transactions")
       .select("*")
@@ -308,7 +309,7 @@ export async function createTransaction(data: TransactionInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("transactions")
@@ -328,7 +329,7 @@ export async function updateTransaction(id: string, data: TransactionUpdate) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("transactions")
@@ -349,7 +350,7 @@ export async function deleteTransaction(id: string) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from("transactions")
       .delete()
@@ -373,7 +374,7 @@ export async function getBudgetInsights(userId: string, unreadOnly: boolean = fa
   if (!DB_ENABLED) return [];
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     let query = supabase
       .from("budget_insights")
       .select("*")
@@ -397,7 +398,7 @@ export async function createBudgetInsight(data: BudgetInsightInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("budget_insights")
@@ -417,7 +418,7 @@ export async function markInsightRead(id: string) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("budget_insights")
@@ -444,7 +445,7 @@ export async function getNotifications(userId: string, unreadOnly: boolean = fal
   if (!DB_ENABLED) return [];
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     let query = supabase
       .from("notifications")
       .select("*")
@@ -469,7 +470,7 @@ export async function createNotification(data: NotificationInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("notifications")
@@ -489,7 +490,7 @@ export async function markNotificationRead(id: string) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any)
       .from("notifications")
@@ -508,7 +509,7 @@ export async function deleteNotification(id: string) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from("notifications")
       .delete()
@@ -532,7 +533,7 @@ export async function createOCRReceipt(data: OCRReceiptInsert) {
   if (!DB_ENABLED) return { success: false, error: "Database not configured" };
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabase as any)
       .from("ocr_receipts")
@@ -558,7 +559,7 @@ export async function getAllocationStatus(userId: string) {
   if (!DB_ENABLED) return null;
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_allocation_status", { p_user_id: userId });
@@ -581,7 +582,7 @@ export async function getMonthlyIncome(userId: string) {
   if (!DB_ENABLED) return 0;
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .rpc("get_monthly_income", { p_user_id: userId });

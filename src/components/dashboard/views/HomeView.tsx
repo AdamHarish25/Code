@@ -3,8 +3,10 @@
 /**
  * HomeView Component
  * Main dashboard home with financial overview and insights
+ * Displays real data from Supabase via dashboard store
  */
 
+import { useEffect } from "react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -23,8 +25,19 @@ import { AddTransactionModal } from "../AddTransactionModal";
 import { formatCurrency } from "@/lib/utils";
 
 export function HomeView() {
-  const { summary } = useDashboard();
+  const { summary, transactions, incomeSources, categoryAllocations, isLoading } = useDashboard();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("[HomeView] Dashboard state:", {
+      summary,
+      transactionsCount: transactions.length,
+      incomeSourcesCount: incomeSources.length,
+      allocationsCount: categoryAllocations.length,
+      isLoading,
+    });
+  }, [summary, transactions, incomeSources, categoryAllocations, isLoading]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -73,7 +86,9 @@ export function HomeView() {
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-success">
             <ArrowUpRight className="w-3 h-3" />
-            <span>+12.5% from last month</span>
+            <span>
+              {summary.totalBalance >= 0 ? '+' : ''}{((summary.totalBalance / (summary.monthlyIncome || 1)) * 100).toFixed(1)}% from income
+            </span>
           </div>
         </div>
 
@@ -90,7 +105,7 @@ export function HomeView() {
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-success">
             <ArrowUpRight className="w-3 h-3" />
-            <span>On track</span>
+            <span>{incomeSources.length} sources</span>
           </div>
         </div>
 
@@ -106,7 +121,7 @@ export function HomeView() {
             {formatCurrency(summary.monthlyExpenses)}
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-muted">
-            <span>{summary.budgetProgress.toFixed(0)}% of budget</span>
+            <span>{transactions.filter(t => t.type === 'expense').length} transactions</span>
           </div>
         </div>
 
@@ -123,10 +138,17 @@ export function HomeView() {
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-success">
             <ArrowUpRight className="w-3 h-3" />
-            <span>Great job!</span>
+            <span>{summary.savingsRate > 20 ? 'Excellent!' : 'Keep improving'}</span>
           </div>
         </div>
       </motion.div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <motion.div variants={itemVariants} className="text-center py-8 text-muted">
+          <p>Loading your financial data...</p>
+        </motion.div>
+      )}
 
       {/* Smart Insight Card */}
       <motion.div variants={itemVariants}>

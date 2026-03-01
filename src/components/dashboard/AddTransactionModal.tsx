@@ -155,6 +155,16 @@ export function AddTransactionModal({
     setIsSubmitting(true);
 
     try {
+      // Get current user ID
+      const { getCurrentUserIdClient } = await import("@/lib/auth-config");
+      const userId = await getCurrentUserIdClient();
+      
+      if (!userId) {
+        alert("You must be signed in to create a transaction");
+        setIsSubmitting(false);
+        return;
+      }
+
       const result = await createTransaction({
         type: transactionType,
         category,
@@ -164,7 +174,7 @@ export function AddTransactionModal({
         merchant: formData.merchant,
         note: formData.note,
         attachment: formData.attachment,
-      });
+      }, userId);  // Pass user ID to server action
 
       if (result.success && result.transactionId) {
         setCurrentStep("success");
@@ -318,7 +328,7 @@ export function AddTransactionModal({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 100 }}
             transition={{ type: "spring", damping: 25 }}
-            className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center"
+            className="fixed inset-x-0 bottom-20 z-50 md:inset-0 md:flex md:items-center md:justify-center"
           >
             <div className="w-full md:max-w-md md:mx-4">
               <motion.div

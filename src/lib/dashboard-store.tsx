@@ -32,6 +32,7 @@ import {
   createNotification as createNotificationService,
 } from "@/lib/supabase-services";
 import { supabase } from "@/lib/supabase";
+import { getSession, onAuthStateChange } from "@/lib/auth-config";
 
 interface DashboardState {
   currentView: DashboardView;
@@ -147,14 +148,14 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
         // Wait for auth session to be restored
         console.log("[Dashboard] Waiting for auth session...");
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         
         if (!session) {
           console.warn("[Dashboard] ⚠️ No active session - waiting for auth...");
           // Wait a bit for auth to initialize
           await new Promise(resolve => setTimeout(resolve, 500));
           // Check again
-          const { data: { session: newSession } } = await supabase.auth.getSession();
+          const { data: { session: newSession } } = await getSession();
           if (!newSession) {
             console.warn("[Dashboard] ⚠️ Still no session after wait");
             setState((prev) => ({ ...prev, isLoading: false }));
@@ -163,10 +164,11 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         }
 
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const { getCurrentUserClient } = await import("@/lib/auth-config");
+        const user = await getCurrentUserClient();
         
-        if (authError || !user) {
-          console.warn("[Dashboard] ⚠️ No authenticated user:", authError?.message);
+        if (!user) {
+          console.warn("[Dashboard] ⚠️ No authenticated user");
           console.warn("[Dashboard] User must sign in first");
           setState((prev) => ({ ...prev, isLoading: false }));
           return;
@@ -204,7 +206,8 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           allocationStatus: data.allocationStatus,
           summary: calculateSummaryFromData(
             transformTransactions(data.transactions || []),
-            data.allocationStatus
+            data.allocationStatus,
+            transformedIncome
           ),
           isLoading: false,
           lastUpdated: new Date(),
@@ -228,10 +231,10 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
     console.log("[Dashboard] Setting up auth state listener...");
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[Dashboard] Auth state changed:", event, session?.user?.email);
+    return onAuthStateChange((user) => {
+      console.log("[Dashboard] Auth state changed:", user?.email);
       
-      if (event === "SIGNED_IN" && session) {
+      if (user) {
         // Reload data when user signs in
         console.log("[Dashboard] User signed in, reloading data...");
         fetchAllDashboardData().then((data) => {
@@ -244,25 +247,15 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
             allocationStatus: data.allocationStatus,
             summary: calculateSummaryFromData(
               transformTransactions(data.transactions || []),
-              data.allocationStatus
+              data.allocationStatus,
+              transformIncomeSources(data.incomeSources || [])
             ),
             lastUpdated: new Date(),
           }));
           console.log("[Dashboard] ✅ Data reloaded after sign in");
         });
       }
-      
-      if (event === "SIGNED_OUT") {
-        // Clear data when user signs out
-        console.log("[Dashboard] User signed out, clearing data...");
-        setState(initialState);
-      }
     });
-
-    return () => {
-      console.log("[Dashboard] Cleaning up auth listener...");
-      subscription.unsubscribe();
-    };
   }, [isInitialized]);
 
   // Navigation
@@ -646,7 +639,8 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         allocationStatus: data.allocationStatus,
         summary: calculateSummaryFromData(
           transformTransactions(data.transactions),
-          data.allocationStatus
+          data.allocationStatus,
+          transformIncomeSources(data.incomeSources)
         ),
         isLoading: false,
         lastUpdated: new Date(),
@@ -871,18 +865,20 @@ function transformNotifications(dbNotifications: any[]): NotificationCard[] {
 // Calculate summary from real data
 function calculateSummaryFromData(
   transactions: Transaction[],
-  allocationStatus: AllocationStatus | null
+  allocationStatus: AllocationStatus | null,
+  incomeSources: IncomeSourceDetail[] = []
 ): DashboardSummary {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
+  // Calculate from transactions
   const monthlyTransactions = transactions.filter((t) => {
     const date = new Date(t.date);
     return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
   });
 
-  const monthlyIncome = monthlyTransactions
+  const monthlyIncomeFromTransactions = monthlyTransactions
     .filter((t) => t.type === "income" && t.status === "completed")
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -890,18 +886,32 @@ function calculateSummaryFromData(
     .filter((t) => t.type === "expense" && t.status === "completed")
     .reduce((sum, t) => sum + t.amount, 0);
 
+  // Calculate from income sources (more reliable for recurring income)
+  const monthlyIncomeFromSources = incomeSources.reduce((sum, source) => {
+    let monthly = source.amount;
+    switch (source.frequency) {
+      case "weekly": monthly *= 4.33; break;
+      case "biweekly": monthly *= 2.17; break;
+      case "yearly": monthly /= 12; break;
+    }
+    return sum + monthly;
+  }, 0);
+
+  // Use income from sources if no transaction income
+  const monthlyIncome = monthlyIncomeFromTransactions || monthlyIncomeFromSources;
   const monthlySurplus = monthlyIncome - monthlyExpenses;
   const savingsRate = monthlyIncome > 0 ? (monthlySurplus / monthlyIncome) * 100 : 0;
 
+  // Calculate budget from allocations
   const totalBudget = allocationStatus?.totalAllocated || 0;
   const totalSpent = allocationStatus ? allocationStatus.totalAllocated - allocationStatus.remainingToAllocate : 0;
   const budgetProgress = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
   return {
     totalBalance: monthlySurplus,
-    monthlyIncome,
-    monthlyExpenses,
-    monthlySurplus,
+    monthlyIncome: Math.round(monthlyIncome),
+    monthlyExpenses: Math.round(monthlyExpenses),
+    monthlySurplus: Math.round(monthlySurplus),
     budgetProgress,
     savingsRate: Math.max(0, savingsRate),
   };

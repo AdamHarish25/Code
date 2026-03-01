@@ -24,9 +24,25 @@ interface TransactionResult {
  * Create a new transaction with Paylabs & Supabase integration
  */
 export async function createTransaction(
-  data: TransactionFormData
+  data: TransactionFormData,
+  userId?: string  // Optional: pass user ID from client
 ): Promise<TransactionResult> {
   try {
+    // Get user ID - either from parameter or from auth
+    let actualUserId = userId;
+    
+    if (!actualUserId) {
+      // Server actions can't read cookies reliably
+      // User ID must be passed from client
+      console.error("[Transaction] User ID not provided");
+      return {
+        success: false,
+        error: "User ID required. Please sign in.",
+      };
+    }
+    
+    console.log("[Transaction] Creating for user ID:", actualUserId);
+    
     // Validate required fields
     if (!data.type || !data.category || !data.account || !data.amount || !data.date) {
       return {
@@ -53,9 +69,9 @@ export async function createTransaction(
       };
     }
 
-    // Save to Supabase database
+    // Save to Supabase database with user ID
     const dbResult = await dbCreateTransaction({
-      user_id: "current-user-id", // Replace with actual user ID from auth
+      user_id: actualUserId,
       type: data.type,
       category: data.category,
       account: data.account,
@@ -63,7 +79,7 @@ export async function createTransaction(
       merchant: data.merchant || null,
       date: data.date,
       note: data.note || null,
-      attachment_url: null, // Would come from file upload
+      attachment_url: null,
       input_method: data.attachment ? "upload" : "manual",
       status: "pending",
       paylabs_transaction_id: paylabsResult.paylabsTransactionId || null,
@@ -77,14 +93,13 @@ export async function createTransaction(
 
     if (!dbResult.success) {
       console.warn("[Transaction] Paylabs success but DB failed:", dbResult.error);
-      // Still return success since Paylabs processed it
     }
 
-    console.log(`Transaction created: ${paylabsResult.transactionId}`);
+    console.log(`✅ Transaction created: ${paylabsResult.transactionId}`);
     console.log(`Paylabs ID: ${paylabsResult.paylabsTransactionId}`);
     console.log(`DB ID: ${(dbResult.data as any)?.id || "N/A"}`);
+    console.log(`User ID: ${actualUserId}`);
     console.log(`Type: ${data.type}, Category: ${data.category}, Amount: $${amount}`);
-    console.log(`AI Category: ${paylabsResult.aiCategory || "N/A"}`);
 
     return {
       success: true,
@@ -96,7 +111,7 @@ export async function createTransaction(
       },
     };
   } catch (error) {
-    console.error("Transaction creation failed:", error);
+    console.error("❌ Transaction creation failed:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

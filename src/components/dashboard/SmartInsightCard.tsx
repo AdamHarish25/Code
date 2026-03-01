@@ -23,19 +23,19 @@ export function SmartInsightCard() {
       const result = await getSmartInsight();
       if (result.success && result.insight) {
         setCurrentInsight(result.insight);
-        addInsight({
-          title: "Daily Financial Insight",
-          content: result.insight,
-          type: "advice",
-        });
+        // Don't save to store - just display the insight
+        // This avoids RLS policy errors
+      } else {
+        // Use fallback insight
+        setCurrentInsight("Track your expenses consistently to build better financial habits.");
       }
     } catch (error) {
-      console.error("Failed to load insight:", error);
-      setCurrentInsight("Track your expenses consistently to build better financial habits. Small daily awareness leads to significant long-term improvements.");
+      console.warn("[SmartInsight] Using fallback insight");
+      setCurrentInsight("Track your expenses consistently to build better financial habits.");
     } finally {
       setIsLoading(false);
     }
-  }, [addInsight]);
+  }, []);
 
   useEffect(() => {
     // Load initial insight
