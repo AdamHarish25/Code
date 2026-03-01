@@ -1,7 +1,7 @@
 # Duitly - Complete Documentation
 
-**Version:** 4.0.0 (Production Ready)  
-**Last Updated:** March 1, 2026  
+**Version:** 4.0.0 (Production Ready)
+**Last Updated:** March 1, 2026
 **Stack:** Next.js 16, Supabase, TypeScript, Tailwind CSS
 
 ---
@@ -9,15 +9,16 @@
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [Architecture](#architecture)
-3. [Database Schema](#database-schema)
-4. [Authentication](#authentication)
-5. [Dashboard Features](#dashboard-features)
-6. [Paylabs Integration](#paylabs-integration)
-7. [AI Integration](#ai-integration)
-8. [File Structure](#file-structure)
-9. [Environment Setup](#environment-setup)
-10. [Troubleshooting](#troubleshooting)
+2. [User Journey](#user-journey)
+3. [Architecture](#architecture)
+4. [Database Schema](#database-schema)
+5. [Authentication](#authentication)
+6. [Dashboard Features](#dashboard-features)
+7. [Paylabs Integration](#paylabs-integration)
+8. [AI Integration](#ai-integration)
+9. [File Structure](#file-structure)
+10. [Environment Setup](#environment-setup)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -102,7 +103,537 @@ npm run dev
 
 ---
 
-## Database Schema
+## User Journey
+
+### Complete User Flow: From Welcome to Dashboard
+
+This section documents the complete user journey through Duitly, including all UI changes and interactions.
+
+### Phase 1: Welcome & Authentication
+
+#### Step 1.1: Welcome Page (`/auth/welcome`)
+```
+┌─────────────────────────────────────────┐
+│          Welcome to Duitly              │
+│     Your Smart Budgeting Assistant      │
+│                                         │
+│  ✨ AI-Powered Insights                 │
+│  📊 Smart Budget Allocation             │
+│  💳 Paylabs Integration                 │
+│                                         │
+│  [Get Started]  [Sign In]               │
+└─────────────────────────────────────────┘
+```
+
+**User Actions:**
+- Click "Get Started" → Goes to Sign Up
+- Click "Sign In" → Goes to Sign In page
+
+#### Step 1.2: Sign Up (`/auth/signup`)
+```
+┌─────────────────────────────────────────┐
+│          Create Your Account            │
+│                                         │
+│  Email: [________________]              │
+│  Password: [________________]           │
+│  Confirm: [________________]            │
+│                                         │
+│  [Create Account]                       │
+│                                         │
+│  Already have account? [Sign In]        │
+└─────────────────────────────────────────┘
+```
+
+**Flow:**
+1. User enters email and password
+2. Clicks "Create Account"
+3. Account created in Supabase Auth
+4. Redirects to onboarding
+
+#### Step 1.3: Sign In (`/auth/signin`)
+```
+┌─────────────────────────────────────────┐
+│          Welcome Back!                  │
+│                                         │
+│  Email: [________________]              │
+│  Password: [________________]           │
+│                                         │
+│  [Sign In]                              │
+│                                         │
+│  No account? [Sign Up]                  │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### Phase 2: Onboarding Flow
+
+#### Step 2.1: Investment Path Selection
+**Route:** `/onboarding` → Step 1
+
+**UI Components:**
+- Large animated header icon (Sparkles)
+- Two gradient cards (Conservative vs Active Compounder)
+- Check indicator on selected card
+- Feature list with gradient bullets
+
+```
+┌─────────────────────────────────────────┐
+│              ✨ Choose Your Path        │
+│   Select the investment approach...     │
+│                                         │
+│  ┌──────────────┐ ┌──────────────┐     │
+│  │ 🛡️           │ │ 📈           │     │
+│  │ Conservative │ │ Active       │     │
+│  │ Safe & Steady│ │ Compounder   │     │
+│  │              │ │              │     │
+│  │ • Capital    │ │ • Aggressive │     │
+│  │ • Steady     │ │ • Market     │     │
+│  │ • Lower      │ │ • Higher     │     │
+│  │ • Bond       │ │ • Stock      │     │
+│  └──────────────┘ └──────────────┘     │
+│         ✓ Selected                     │
+│                                         │
+│           [Continue]                    │
+└─────────────────────────────────────────┘
+```
+
+**User Actions:**
+- Click on a card → Card highlights with checkmark
+- Click "Continue" → Proceeds to next step
+
+**Data Saved:**
+```typescript
+{
+  investmentPath: "conservative" | "active-compounder"
+}
+```
+
+#### Step 2.2: Dream Setting
+**Route:** `/onboarding` → Step 2
+
+**UI Components:**
+- Rotating header icon animation
+- Large textarea for dream description
+- 4 clickable example dream cards with icons
+
+```
+┌─────────────────────────────────────────┐
+│          ✨ What's Your Dream?          │
+│   Describe your biggest financial...    │
+│                                         │
+│  ┌───────────────────────────────────┐ │
+│  │ I want to achieve financial...    │ │
+│  │                                   │ │
+│  │                                   │ │
+│  └───────────────────────────────────┘ │
+│                                         │
+│  🎯 Emergency Fund    🏠 Home          │
+│     6 months expenses     Down payment │
+│  🌍 Financial Free     💼 Business     │
+│     Retire early          Successful   │
+│                                         │
+│           [Continue]                    │
+└─────────────────────────────────────────┘
+```
+
+**User Actions:**
+- Type in textarea OR click example card
+- Click "Continue" → Proceeds to next step
+
+**Data Saved:**
+```typescript
+{
+  dreamDescription: "Build an emergency fund..."
+}
+```
+
+#### Step 2.3: Goal Setting
+**Route:** `/onboarding` → Step 3
+
+**UI Components:**
+- Rotating target icon header
+- Dashed border "Add Goal" button
+- Animated goal cards with progress bars
+- Priority badges (Low/Medium/High)
+
+```
+┌─────────────────────────────────────────┐
+│          🎯 Set Your Goals              │
+│   Add specific financial goals...       │
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │  +  Add Your First Goal         │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  OR after adding goals:                 │
+│  ┌─────────────────────────────────┐   │
+│  │ Emergency Fund        [High] 🗑️│   │
+│  │ 💰 50,000,000  📅 2026-12-31   │   │
+│  │ [========0%========]            │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│           [Continue]                    │
+└─────────────────────────────────────────┘
+```
+
+**User Actions:**
+- Click "Add Goal" → Form expands
+- Fill name, amount, date, priority
+- Click "Add Goal" → Card appears
+- Click 🗑️ → Remove goal
+- Click "Continue" → Proceeds to next step
+
+**Data Saved:**
+```typescript
+{
+  goals: [
+    {
+      id: "xxx",
+      name: "Emergency Fund",
+      targetAmount: 50000000,
+      targetDate: "2026-12-31",
+      priority: "high"
+    }
+  ]
+}
+```
+
+#### Step 2.4: Financial Setup
+**Route:** `/onboarding` → Step 4
+
+**UI Components:**
+- Rotating sparkles header icon
+- Income type selector with icons (Wallet/Briefcase/etc.)
+- Frequency dropdown
+- Income list with type badges
+
+```
+┌─────────────────────────────────────────┐
+│          ✨ Financial Setup             │
+│   Add your income sources...            │
+│                                         │
+│  💰 Income Sources                      │
+│  ┌─────────────────────────────────┐   │
+│  │  +  Add Income                  │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  OR after adding:                       │
+│  ┌─────────────────────────────────┐   │
+│  │ 💰 Salary                      🗑️│   │
+│  │    Monthly • salary            │   │
+│  │             15,000,000         │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│           [Continue]                    │
+└─────────────────────────────────────────┘
+```
+
+**User Actions:**
+- Click "+" → Form expands
+- Enter amount, select frequency and type
+- Click "Add Income" → Card appears
+- Click "Continue" → Saves data and redirects
+
+**Data Saved:**
+```typescript
+{
+  incomeSources: [
+    {
+      type: "salary",
+      amount: 15000000,
+      frequency: "monthly"
+    }
+  ],
+  expenses: [],
+  completedAt: "2026-03-01T10:00:00Z"
+}
+```
+
+#### Step 2.5: Onboarding Complete
+**Route:** `/onboarding/complete`
+
+**UI Components:**
+- Success animation
+- Loading spinner while saving
+- Auto-redirect to dashboard
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│            ✓ Success!                   │
+│                                         │
+│        Saving your profile...           │
+│                                         │
+│        [Spinning loader]                │
+│                                         │
+│      Redirecting to dashboard...        │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Backend Actions:**
+1. Save all onboarding data to Supabase
+2. Update user metadata (`onboarding_completed: true`)
+3. Create profile in `profiles` table
+4. Insert income sources
+5. Insert category allocations
+6. Insert financial goals
+7. Redirect to `/dashboard`
+
+---
+
+### Phase 3: Dashboard Experience
+
+#### Step 3.1: Dashboard Home (`/dashboard`)
+**Route:** `/dashboard` → Home tab
+
+**UI Components:**
+- Summary cards (Balance, Income, Expenses, Savings Rate)
+- Smart Insight Card (AI-generated)
+- Budget Progress visualization
+- Recent Transactions list
+- Floating Action Button (+)
+
+```
+┌─────────────────────────────────────────┐
+│  Good Morning! 👋                       │
+│  Here's your financial overview         │
+│                                         │
+│  ┌──────────┐ ┌──────────┐            │
+│  │ 💰 Total │ │ 📈 Income│            │
+│  │ Balance  │ │ Monthly  │            │
+│  │ 1,975,000│ │ 2,000,000│            │
+│  └──────────┘ └──────────┘            │
+│  ┌──────────┐ ┌──────────┐            │
+│  │ 📉 Exp   │ │ 💵 Savings│            │
+│  │ Monthly  │ │ Rate     │            │
+│  │ 25,000   │ │ 98.75%   │            │
+│  └──────────┘ └──────────┘            │
+│                                         │
+│  ✨ AI Insight                          │
+│  "Your budget looks well-balanced..."  │
+│                                         │
+│  📊 Budget Progress                     │
+│  [========98%========]                 │
+│                                         │
+│  📝 Recent Transactions                 │
+│  • Shell - Rp 10,000                   │
+│  • McDonald's - Rp 15,000              │
+│                                         │
+│                            [+] FAB      │
+└─────────────────────────────────────────┘
+```
+
+**Data Flow:**
+1. Dashboard loads → `DashboardProvider` initializes
+2. `fetchAllDashboardData()` called
+3. Supabase queries:
+   - `transactions` (last 100)
+   - `income_sources` (active only)
+   - `category_allocations` (all)
+   - `financial_goals` (all)
+   - `budget_insights` (last 10)
+   - `get_allocation_status()` RPC function
+4. Data transformed to app types
+5. Summary calculated
+6. State updated
+7. Views render with real data
+
+#### Step 3.2: Adding Transaction
+**Action:** Click FAB (+) button
+
+**UI Flow:**
+```
+1. Click [+] → Modal opens
+2. Select Type → Income/Expense
+3. Select Category → Food/Transport/etc.
+4. Select Method → Manual/Photo/Upload
+5. Enter Details → Amount, Date, Merchant
+6. Submit → Paylabs processes
+7. Success → Transaction saved
+8. Webhook → Status updated to "completed"
+9. Dashboard → Balance updates automatically
+```
+
+**Backend Flow:**
+```typescript
+// 1. Create transaction
+POST /api/transactions
+{
+  type: "expense",
+  category: "food",
+  amount: 75000,
+  merchant: "Starbucks",
+  date: "2026-03-01"
+}
+
+// 2. Paylabs processes
+{
+  transactionId: "duitly_xxx",
+  paylabsTransactionId: "pl_xxx",
+  status: "pending"
+}
+
+// 3. Webhook callback (500ms later)
+POST /api/webhooks/paylabs
+{
+  eventType: "transaction.success",
+  transactionId: "duitly_xxx",
+  amount: 75000
+}
+
+// 4. Database updated
+UPDATE transactions
+SET status = "completed"
+WHERE paylabs_transaction_id = "pl_xxx"
+
+// 5. Dashboard refreshes
+// Balance: 2,000,000 → 1,925,000
+```
+
+#### Step 3.3: Budget View
+**Route:** `/dashboard` → Budget tab
+
+```
+┌─────────────────────────────────────────┐
+│  Budget                                 │
+│  Track and manage your spending         │
+│                                         │
+│  ┌────────┐ ┌────────┐ ┌────────┐     │
+│  │🐷 Total│ │📉 Spent│ │📊 Left │     │
+│  │Budget  │ │This Mo │ │Remaining     │
+│  │40,000  │ │25,000  │ │15,000        │
+│  └────────┘ └────────┘ └────────┘     │
+│                                         │
+│  Budget Categories                      │
+│  ┌─────────────────────────────────┐   │
+│  │ 🏠 Housing                      │   │
+│  │ Rp 20,000 / Rp 20,000 (100%)   │   │
+│  │ [============] ⚠️ Over budget  │   │
+│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────┐   │
+│  │ 🍔 Food & Dining                │   │
+│  │ Rp 5,000 / Rp 15,000 (33%)     │   │
+│  │ [====        ] ✓ On track       │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+```
+
+#### Step 3.4: Analytics View
+**Route:** `/dashboard` → Analytics tab
+
+```
+┌─────────────────────────────────────────┐
+│  Analytics                              │
+│  Visual insights into spending          │
+│                                         │
+│  ✨ AI Insights                         │
+│  "Your spending increased 10%..."      │
+│                                         │
+│  ┌──────────┐ ┌──────────┐            │
+│  │ Net      │ │ Income   │            │
+│  │ Balance  │ │ vs Exp   │            │
+│  │ 1,975,000│ │ [Chart]  │            │
+│  └──────────┘ └──────────┘            │
+│                                         │
+│  Expense Breakdown                      │
+│  [Pie Chart]                            │
+│  • Food: 60%                           │
+│  • Transport: 40%                      │
+│                                         │
+│  Expenses by Category                   │
+│  • Food: Rp 15,000 / Rp 20,000        │
+│  • Transport: Rp 10,000 / Rp 10,000   │
+└─────────────────────────────────────────┘
+```
+
+#### Step 3.5: Goals View
+**Route:** `/dashboard` → Goals tab
+
+```
+┌─────────────────────────────────────────┐
+│  Financial Goals                  [+ Add]│
+│  Track progress towards your dreams     │
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │ 🏠 Emergency Fund      [High]  │   │
+│  │                                  │   │
+│  │  Progress: [======30%======]    │   │
+│  │  Saved: Rp 15,000,000           │   │
+│  │  Target: Rp 50,000,000          │   │
+│  │  📅 Target: Dec 31, 2026        │   │
+│  │                                  │   │
+│  │  [+ Rp 100,000] Quick Add       │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+```
+
+#### Step 3.6: Insights View
+**Route:** `/dashboard` → Insights tab
+
+```
+┌─────────────────────────────────────────┐
+│  AI Insights        [🔄 New Insight]   │
+│  Personalized financial intelligence    │
+│                                         │
+│  🧠 Your Personal Financial Advisor     │
+│  "Our AI analyzes your spending..."    │
+│                                         │
+│  Recent Insights                        │
+│  ┌─────────────────────────────────┐   │
+│  │ 💡 Spending Pattern Alert       │   │
+│  │ "Your dining expenses increased │   │
+│  │  by 23% this month..."          │   │
+│  │  alert • 2 hours ago            │   │
+│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────┐   │
+│  │ 📈 Savings Opportunity          │   │
+│  │ "You have Rp 500,000 extra..."  │   │
+│  │  opportunity • 1 day ago        │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### Phase 4: Settings & Profile
+
+#### Step 4.1: Settings Page (`/settings`)
+**Access:** Click profile icon → Settings
+
+```
+┌─────────────────────────────────────────┐
+│  Settings                               │
+│  Manage your account and preferences    │
+│                                         │
+│  👤 Profile                             │
+│  [Avatar]  Full Name: [Input]          │
+│            Email: user@example.com     │
+│                                         │
+│  🎨 Preferences                         │
+│  Theme: [Dark ▼]  Currency: [IDR ▼]   │
+│  Language: [English ▼]                  │
+│                                         │
+│  🔔 Notifications                       │
+│  ☑ Email Notifications                 │
+│  ☑ Push Notifications                  │
+│                                         │
+│  🛡️ Account                             │
+│  [Change Password]                      │
+│  [Delete Account]                       │
+│                                         │
+│  [Save Changes]  [Sign Out]             │
+└─────────────────────────────────────────┘
+```
+
+**Settings Saved To:**
+- Supabase Auth user metadata
+- Persists across sessions
+
+---
+
+## Architecture
 
 ### Core Tables
 
